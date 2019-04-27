@@ -14,8 +14,9 @@
     <Optimize>true</Optimize> 
     <UpdateVersionProperties>true</UpdateVersionProperties>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NEST" Version="[6.0.0,]"  />
+    <PackageReference Include="NEST" Version="[6.0.0,]" />
   </ItemGroup>
 </Project>

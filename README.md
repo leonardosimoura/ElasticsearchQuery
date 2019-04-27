@@ -5,6 +5,8 @@ Its a simple IQueryable implementation for ElasticSearch
 
 Some queries are suported for now.(see the Test project)
 
+Is an early development. Have a lot of improvements and implementations to do.
+
 Using Netstandard 2.0
 
 ## Suported Nest Versions
