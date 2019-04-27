@@ -25,7 +25,9 @@ Using Netstandard 2.0
 ## TODO
 
 Add Take and Skip support.
+
 Add Custom Map for class (Index name / Type name / Columns names).
+
 Improve support for linq queries.
 
 ## More About ElasticSearch
