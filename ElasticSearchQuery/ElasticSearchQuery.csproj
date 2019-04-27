@@ -2,6 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageReleaseNotes>See https://github.com/leonardosimoura/ElasticSearchQuery</PackageReleaseNotes>
+    <PackageIconUrl>https://github.com/leonardosimoura/ElasticSearchQuery/blob/master/nuget-icon.png</PackageIconUrl>
+    <PackageLicenseUrl>https://github.com/leonardosimoura/ElasticSearchQuery/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/leonardosimoura/ElasticSearchQuery</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/leonardosimoura/ElasticSearchQuery.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Description>Simple IQueryable implementation for ElasticSearch</Description>
+    <Authors>Leonardo Silvio de Moura</Authors>
+    <Version>0.1.0</Version>
+    <Optimize>true</Optimize> 
+    <UpdateVersionProperties>true</UpdateVersionProperties>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NEST" Version="[6.0.0,]"  />
