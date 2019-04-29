@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 
 namespace ElasticSearchQuery
 {
@@ -17,6 +16,7 @@ namespace ElasticSearchQuery
         string field = string.Empty;
         List<GroupBy> fieldsGroupBy = new List<GroupBy>();
         List<Aggregation> aggregations = new List<Aggregation>();
+        List<OrderBy> fieldsOrderBy = new List<OrderBy>();
         string operacao = string.Empty;
         ExpressionType binaryExpType;
         object value = null;
@@ -29,10 +29,11 @@ namespace ElasticSearchQuery
         public AggregationBase AggregationBase
         {
             get { return _aggregationBase; }
-            set {
-                if (_aggregationBase == null)                
-                    _aggregationBase = value;                
-                else                
+            set
+            {
+                if (_aggregationBase == null)
+                    _aggregationBase = value;
+                else
                     _aggregationBase = _aggregationBase && value;
             }
         }
@@ -53,7 +54,7 @@ namespace ElasticSearchQuery
                 {
                     var dateHistAgg = new DateHistogramAggregation(aggr.Field)
                     {
-                        Missing = (DateTime?)null ,//(DateTime?)aggr.Missing,
+                        Missing = (DateTime?)null,//(DateTime?)aggr.Missing,
                         Field = aggr.Field,
                         //Aggregations = ((aggregations != null) ? aggregations : null),
                         Interval = DateInterval.Day,
@@ -71,16 +72,16 @@ namespace ElasticSearchQuery
                     var termsAgg = new TermsAggregation(aggr.Field)
                     {
                         Field = aggr.Field,
-                       //Aggregations = ((aggregations != null) ? aggregations : null),
+                        //Aggregations = ((aggregations != null) ? aggregations : null),
                         Size = int.MaxValue,
                         //Missing = null,//aggr.Missing,
                         MinimumDocumentCount = 1,
                         //Script = (!string.IsNullOrWhiteSpace(aggr.Script)) ? new InlineScript(aggr.Script) : null
                     };
 
-                    if (aggregations != null)                    
+                    if (aggregations != null)
                         termsAgg.Aggregations = aggregations;
-                    
+
 
                     aggregations = termsAgg;
                 }
@@ -91,7 +92,7 @@ namespace ElasticSearchQuery
 
         private void SetAggregation()
         {
-            
+
 
             foreach (var item in aggregations)
             {
@@ -116,7 +117,7 @@ namespace ElasticSearchQuery
                         break;
                 }
             }
-            
+
             _searchRequest.Aggregations = ObterAgrupamentoNest(fieldsGroupBy, AggregationBase);
         }
 
@@ -126,17 +127,17 @@ namespace ElasticSearchQuery
             switch (operacao)
             {
                 case "Contains":
-                    queryContainer = Query<object>.Wildcard(f => f.Value("*"+value.ToString()).Field(field));
+                    queryContainer = Query<object>.Wildcard(f => f.Value("*" + value.ToString()).Field(field));
                     break;
                 case "StartsWith":
                     queryContainer = Query<object>.Prefix(f => f.Field(field).Value(value.ToString()));
                     break;
                 case "EndsWith":
-                    queryContainer = Query<object>.Regexp(f => f.Field(field).Value(".*"+value.ToString()));
+                    queryContainer = Query<object>.Regexp(f => f.Field(field).Value(".*" + value.ToString()));
                     break;
                 default:
                     break;
-            }            
+            }
 
             if (_searchRequest.Query == null)
             {
@@ -199,9 +200,28 @@ namespace ElasticSearchQuery
             }
         }
 
+        private  void SetOrderBy()
+        {
+            if (fieldsOrderBy.Any())
+            {
+                fieldsOrderBy.Reverse();
+                var _sortList = new List<ISort>();
+                foreach (var item in fieldsOrderBy)
+                {
+                    _sortList.Add(new SortField()
+                    {
+                        Field = item.Field,
+                        Order = item.Order
+                    });
+                }
+
+                _searchRequest.Sort = _sortList;
+            }
+        }
+
         internal QueryTranslateResult Translate(Expression expression, Type elementType)
         {
-            this.elementType = elementType;            
+            this.elementType = elementType;
 
             _searchRequest = new SearchRequest(elementType.Name.ToLower(), elementType.Name.ToLower());
             this.Visit(expression);
@@ -209,7 +229,9 @@ namespace ElasticSearchQuery
             if (_searchRequest.Query == null)
                 _searchRequest.Query = Query<object>.MatchAll();
 
-            var result = new QueryTranslateResult(_searchRequest, fieldsGroupBy,aggregations);
+            SetOrderBy();
+
+            var result = new QueryTranslateResult(_searchRequest, fieldsGroupBy, aggregations);
 
             return result;
         }
@@ -228,7 +250,7 @@ namespace ElasticSearchQuery
                 case "Min":
                 case "Max":
                 case "Sum":
-                case "Average":                    
+                case "Average":
                     var aggLambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
                     if (aggLambda.Body is MemberExpression)
                     {
@@ -281,7 +303,7 @@ namespace ElasticSearchQuery
                         {
                             var pInfo = item as PropertyInfo;
                             fieldsGroupBy.Add(new GroupBy(item.Name.ToCamelCase(), pInfo.PropertyType));
-                        }                      
+                        }
                     }
                     else if (groupByLambda.Body is MemberExpression)
                     {
@@ -290,7 +312,7 @@ namespace ElasticSearchQuery
                     }
 
                     SetAggregation();
-                  
+
                     return m;
                     break;
                 case "Select":
@@ -311,12 +333,12 @@ namespace ElasticSearchQuery
                                         var arMExp = argument as MethodCallExpression;
                                         var propArgLambda = (LambdaExpression)ExpressionHelper.StripQuotes(arMExp.Arguments[1]);
                                         var propArgMExp = propArgLambda.Body as MemberExpression;
-                                        aggregations.Add(new Aggregation(propArgMExp.Member.Name.ToCamelCase(), arMExp.Method.Name));                                        
+                                        aggregations.Add(new Aggregation(propArgMExp.Member.Name.ToCamelCase(), arMExp.Method.Name));
                                     }
                                 }
                             }
                         }
-                    }  
+                    }
 
                     this.Visit(m.Arguments[0]);
                     return m;
@@ -350,18 +372,34 @@ namespace ElasticSearchQuery
 
                     _searchRequest.From = _from;
 
-                    if (m.Arguments.First() is ConstantExpression == false)
-                    {
-                        Visit(m.Arguments.First());
-                    }
-                    
+                    if (m.Arguments.First() is ConstantExpression == false)                    
+                        Visit(m.Arguments.First());   
 
                     return m;
                     break;
+                case "OrderBy":
+                case "OrderByDescending":
+                case "ThenBy":
+                case "ThenByDescending":
+
+                    var orderLambdaExp = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments.Last());
+                    if (orderLambdaExp.Body is MemberExpression)
+                    {
+                        var mExp = orderLambdaExp.Body as MemberExpression;
+
+                        fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(),(m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy")?SortOrder.Ascending: SortOrder.Descending));
+                    }
+
+                    if (m.Arguments.First() is ConstantExpression == false)                    
+                        Visit(m.Arguments.First());                    
+
+                    return m;
+                    break;
+
                 default:
                     throw new NotSupportedException(string.Format("The method '{0}' is not supported", m.Method.Name));
                     break;
-            }     
+            }
         }
 
         protected override Expression VisitUnary(UnaryExpression u)
@@ -444,7 +482,7 @@ namespace ElasticSearchQuery
                 var field = m.Type.GetField(m.Member.Name);
                 value = field.GetValue(null);
             }
-            return m;            
+            return m;
         }
     }
 
@@ -461,7 +499,20 @@ namespace ElasticSearchQuery
 
         public IEnumerable<GroupBy> GroupBy { get; private set; }
 
-        public IEnumerable<Aggregation> Aggregation{ get; private set; }
+        public IEnumerable<Aggregation> Aggregation { get; private set; }
+    }
+
+    internal class OrderBy
+    {
+        public OrderBy(string field, SortOrder order)
+        {
+            Field = field;
+            Order = order;
+        }
+
+        public string Field { get; set; }
+        public SortOrder Order { get; set; }
+
     }
 
     internal class GroupBy

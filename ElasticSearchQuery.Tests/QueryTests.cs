@@ -26,7 +26,7 @@ namespace ElasticSearchQuery.Tests
 
         private IElasticClient ObterCliente()
         {
-            var node = new Uri("http://192.168.7.38:9200");
+            var node = new Uri("http://localhost:9200/");
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
@@ -48,6 +48,131 @@ namespace ElasticSearchQuery.Tests
                                   ))));
         }
 
+        [Fact]
+        public void OrderByAndWhere()
+        {
+            var productList = new List<ProductTest>();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
+            }
+
+            var client = ObterCliente();
+
+            if (client.IndexExists("ProductTest".ToLower()).Exists)
+                client.DeleteIndex("ProductTest".ToLower());
+
+            CreateIndexTest(client);
+
+            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
+            client.Refresh("ProductTest".ToLower());
+
+
+            var query = ElasticSearchQueryFactory.GetQuery<ProductTest>(client);
+
+            query = query.Where(w => w.Price == 99).OrderBy(o => o.Name).ThenBy(o => o.Price);
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.Single(result);
+            Assert.Equal("ProductTest 99", result.First().Name);
+            Assert.Equal(99, result.First().Price);
+        }
+
+
+        [Fact]
+        public void OrderBy()
+        {
+            var productList = new List<ProductTest>();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
+            }
+
+            var client = ObterCliente();
+
+            if (client.IndexExists("ProductTest".ToLower()).Exists)
+                client.DeleteIndex("ProductTest".ToLower());
+
+            CreateIndexTest(client);
+
+            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
+            client.Refresh("ProductTest".ToLower());
+
+
+            var query = ElasticSearchQueryFactory.GetQuery<ProductTest>(client);
+
+            query = query.OrderBy(o => o.Name).ThenBy(o => o.Price);
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.Equal("ProductTest 0", result.First().Name);
+            Assert.Equal(0, result.First().Price);
+        }
+
+        [Fact]
+        public void OrderByDescendingAndWhere()
+        {
+            var productList = new List<ProductTest>();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
+            }
+
+            var client = ObterCliente();
+
+            if (client.IndexExists("ProductTest".ToLower()).Exists)
+                client.DeleteIndex("ProductTest".ToLower());
+
+            CreateIndexTest(client);
+
+            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
+            client.Refresh("ProductTest".ToLower());
+
+
+            var query = ElasticSearchQueryFactory.GetQuery<ProductTest>(client);
+
+            query = query.Where(w => w.Price == 150).OrderByDescending(o => o.Name).ThenByDescending(o => o.Price);
+
+            var result = query.ToList();
+            Assert.Single(result);
+            Assert.Equal("ProductTest 150", result.First().Name);
+            Assert.Equal(150, result.First().Price);
+        }
+
+        [Fact]
+        public void OrderByDescending()
+        {
+            var productList = new List<ProductTest>();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
+            }
+
+            var client = ObterCliente();
+
+            if (client.IndexExists("ProductTest".ToLower()).Exists)
+                client.DeleteIndex("ProductTest".ToLower());
+
+            CreateIndexTest(client);
+
+            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
+            client.Refresh("ProductTest".ToLower());
+
+
+            var query = ElasticSearchQueryFactory.GetQuery<ProductTest>(client);
+
+            query = query.OrderByDescending(o => o.Name).ThenByDescending(o => o.Price);
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.Equal("ProductTest 999", result.First().Name);
+            Assert.Equal(999, result.First().Price);
+        }
 
         [Theory]
         [InlineData(0,10)]
