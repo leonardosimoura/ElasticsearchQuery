@@ -205,8 +205,6 @@ namespace ElasticSearchQuery
 
             _searchRequest = new SearchRequest(elementType.Name.ToLower(), elementType.Name.ToLower());
             this.Visit(expression);
-            _searchRequest.Size = 100;
-            _searchRequest.From = 0;
             _searchRequest.Human = true;
             if (_searchRequest.Query == null)
                 _searchRequest.Query = Query<object>.MatchAll();
@@ -321,6 +319,43 @@ namespace ElasticSearchQuery
                     }  
 
                     this.Visit(m.Arguments[0]);
+                    return m;
+                    break;
+                case "Take":
+
+                    int? _take = null;
+                    if (m.Arguments.Last() is ConstantExpression)
+                    {
+                        var constExp = m.Arguments.Last() as ConstantExpression;
+                        _take = constExp.Value as int?;
+                    }
+
+                    _searchRequest.Size = _take;
+
+                    if (m.Arguments.First() is ConstantExpression == false)
+                    {
+                        Visit(m.Arguments.First());
+                    }
+
+                    return m;
+                    break;
+                case "Skip":
+
+                    int? _from = null;
+                    if (m.Arguments.Last() is ConstantExpression)
+                    {
+                        var constExp = m.Arguments.Last() as ConstantExpression;
+                        _from = constExp.Value as int?;
+                    }
+
+                    _searchRequest.From = _from;
+
+                    if (m.Arguments.First() is ConstantExpression == false)
+                    {
+                        Visit(m.Arguments.First());
+                    }
+                    
+
                     return m;
                     break;
                 default:
