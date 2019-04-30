@@ -14,7 +14,7 @@ Using Netstandard 2.0
  ```csharp
  
  var client = new ElasticClient();
- var query = ElasticSearchQueryFactory.GetQuery<Product>(client);
+ var query = ElasticSearchQueryFactory.CreateQuery<Product>(client);
  
  ```
 
@@ -24,11 +24,14 @@ Using Netstandard 2.0
 
 ## TODO
 
-Add Take and Skip support.
-
 Add Custom Map for class (Index name / Type name / Columns names).
 
 Improve support for linq queries.
+
+## Lastest Work
+Add Take and Skip support (Added).
+
+Add OrderBy support (Added).
 
 ## More About ElasticSearch
 https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
