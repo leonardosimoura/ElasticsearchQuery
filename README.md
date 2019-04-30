@@ -24,11 +24,12 @@ Using Netstandard 2.0
 
 ## TODO
 
-Add Custom Map for class (Index name / Type name / Columns names).
+Add Custom Map for class (Index name / Type name / Columns names). Currently it use the name of class in camelcase
+
 
 Improve support for linq queries.
 
-## Lastest Work
+## Latest Work
 Add Take and Skip support (Added).
 
 Add OrderBy support (Added).
