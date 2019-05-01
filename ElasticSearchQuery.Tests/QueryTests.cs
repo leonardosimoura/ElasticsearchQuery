@@ -2,6 +2,7 @@ using Nest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Xunit;
 
 namespace ElasticSearchQuery.Tests
@@ -19,17 +20,64 @@ namespace ElasticSearchQuery.Tests
             return client;
         }
 
-        private void CreateIndexTest(IElasticClient client)
+        private void CreateIndexTest(IElasticClient client, string indexName = "producttest" , string indexType = "producttest")
         {
-            client.CreateIndex("ProductTest".ToLower(), cr => cr.Mappings(mp =>
-                       mp.Map<ProductTest>(m =>
-                              m.AutoMap()
+            client.CreateIndex(indexName, cr => cr.Mappings(mp =>
+                       mp.Map<ProductTest>(indexType, m =>
+                              m.AutoMap()                              
                               .Properties(ps => ps
                                   .Text(p => p.Name(na => na.ProductId).Analyzer("keyword").Fielddata(true))
                                   .Text(p => p.Name(na => na.Name).Analyzer("keyword").Fielddata(true))
                                   .Text(p => p.Name(na => na.NameAsText).Analyzer("standard").Fielddata(true))
                                   .Number(p => p.Name(na => na.Price).Type(NumberType.Double))
                                   ))));
+        }
+
+        private void AddData(params ProductTest[] data)
+        {
+            var client = ObterCliente();
+
+            if (client.IndexExists("producttest").Exists)            
+                client.DeleteByQuery<ProductTest>(a => a.Query(q => q.MatchAll())
+                    .Index("producttest").Type("producttest"));            
+            else            
+                CreateIndexTest(client);                           
+            
+            client.IndexMany(data, "producttest", "producttest");
+
+            client.Refresh("producttest");
+        }
+
+        [Theory]
+        [InlineData("customindex", "customindex")]
+        [InlineData("mycustomidx", "mycustomidx")]
+        [InlineData("customindex", "mycustomidx")]
+        [InlineData("productindex", "productindextype")]
+        public void UsingCustomMapper(string indexName , string indexType)
+        {
+            var productList = new List<ProductTest>();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
+            }
+
+            var client = ObterCliente();
+
+            if (client.IndexExists(indexName).Exists)
+                client.DeleteIndex(indexName);
+
+            CreateIndexTest(client, indexName, indexType);
+
+            client.IndexMany(productList, indexName, indexType);
+            client.Refresh(indexName);
+
+            ElasticQueryMapper.Map(typeof(ProductTest), indexName, indexType);
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            ElasticQueryMapper.Clean();
         }
 
         [Fact]
@@ -42,16 +90,8 @@ namespace ElasticSearchQuery.Tests
                 productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
             }
 
+            AddData(productList.ToArray());
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
-            client.Refresh("ProductTest".ToLower());
-
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
 
@@ -64,7 +104,6 @@ namespace ElasticSearchQuery.Tests
             Assert.Equal(99, result.First().Price);
         }
 
-
         [Fact]
         public void OrderBy()
         {
@@ -75,16 +114,8 @@ namespace ElasticSearchQuery.Tests
                 productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
             }
 
+            AddData(productList.ToArray());
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
-            client.Refresh("ProductTest".ToLower());
-
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
 
@@ -106,15 +137,8 @@ namespace ElasticSearchQuery.Tests
                 productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
             }
 
+            AddData(productList.ToArray());
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
-            client.Refresh("ProductTest".ToLower());
 
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
@@ -137,16 +161,9 @@ namespace ElasticSearchQuery.Tests
                 productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
             }
 
+            AddData(productList.ToArray());
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
-            client.Refresh("ProductTest".ToLower());
-
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
 
@@ -171,16 +188,9 @@ namespace ElasticSearchQuery.Tests
                 productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
             }
 
+            AddData(productList.ToArray());
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.IndexMany(productList, "ProductTest".ToLower(), "ProductTest".ToLower());
-            client.Refresh("ProductTest".ToLower());
-            
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
 
@@ -195,16 +205,10 @@ namespace ElasticSearchQuery.Tests
         public void EndsWithValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -221,16 +225,10 @@ namespace ElasticSearchQuery.Tests
         public void EndsWithInvalid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -246,16 +244,10 @@ namespace ElasticSearchQuery.Tests
         public void StartsWithValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -272,16 +264,10 @@ namespace ElasticSearchQuery.Tests
         public void StartsWithInvalid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -298,16 +284,10 @@ namespace ElasticSearchQuery.Tests
         public void ContainsValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -324,16 +304,10 @@ namespace ElasticSearchQuery.Tests
         public void ContainsInvalid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -349,16 +323,10 @@ namespace ElasticSearchQuery.Tests
         public void NotEqualsValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -376,16 +344,10 @@ namespace ElasticSearchQuery.Tests
         public void NotEqualsInvalid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -401,16 +363,10 @@ namespace ElasticSearchQuery.Tests
         public void EqualsValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -427,16 +383,10 @@ namespace ElasticSearchQuery.Tests
         public void EqualsInvalid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
-
 
             var pId = produto.ProductId;
             var pNome = produto.Name;
@@ -452,15 +402,10 @@ namespace ElasticSearchQuery.Tests
         public void GreaterThanInvalid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
             query = query.Where(w => w.Price > 50);
@@ -473,15 +418,10 @@ namespace ElasticSearchQuery.Tests
         public void GreaterThanValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
 
             var pId = produto.ProductId;
 
@@ -497,15 +437,10 @@ namespace ElasticSearchQuery.Tests
         public void LessThanValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
 
             var pId = produto.ProductId;
 
@@ -522,15 +457,10 @@ namespace ElasticSearchQuery.Tests
         public void LessThanInvalid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
             query = query.Where(w => w.Price < 1);
@@ -544,16 +474,10 @@ namespace ElasticSearchQuery.Tests
         {
             var produto1 = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
             var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest 2", 5M);
+
+            AddData(produto1, produto2);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto1, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Index(produto2, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
             var precoTotal = query.Sum(s => s.Price);
@@ -566,16 +490,10 @@ namespace ElasticSearchQuery.Tests
         {
             var produto1 = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
             var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest 2", 5M);
+
+            AddData(produto1, produto2);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto1, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Index(produto2, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
             var result = (from o in query
@@ -596,16 +514,10 @@ namespace ElasticSearchQuery.Tests
         {
             var produto1 = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
             var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest 2", 5M);
+
+            AddData(produto1, produto2);
+
             var client = ObterCliente();
-
-            if (client.IndexExists("ProductTest".ToLower()).Exists)
-                client.DeleteIndex("ProductTest".ToLower());
-
-            CreateIndexTest(client);
-
-            client.Index(produto1, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Index(produto2, f => f.Index("ProductTest".ToLower()).Type("ProductTest".ToLower()));
-            client.Refresh("ProductTest".ToLower());
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
 
@@ -623,6 +535,7 @@ namespace ElasticSearchQuery.Tests
         }
     }
 
+    [ElasticsearchType(Name= "producttest")]
     public class ProductTest
     {
         public ProductTest(Guid productId, string name, decimal price)

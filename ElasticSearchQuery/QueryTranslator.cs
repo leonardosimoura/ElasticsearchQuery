@@ -222,9 +222,12 @@ namespace ElasticSearchQuery
         internal QueryTranslateResult Translate(Expression expression, Type elementType)
         {
             this.elementType = elementType;
+            var queryMap = ElasticQueryMapper.GetMap(this.elementType);
+            _searchRequest = new SearchRequest(queryMap.Index, queryMap.IndexTypes);
 
-            _searchRequest = new SearchRequest(elementType.Name.ToLower(), elementType.Name.ToLower());
-            this.Visit(expression);
+            if (expression is ConstantExpression == false)            
+                this.Visit(expression);            
+            
             _searchRequest.Human = true;
             if (_searchRequest.Query == null)
                 _searchRequest.Query = Query<object>.MatchAll();
