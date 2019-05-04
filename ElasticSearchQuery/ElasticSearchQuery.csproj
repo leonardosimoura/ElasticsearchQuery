@@ -8,12 +8,14 @@
     <PackageProjectUrl>https://github.com/leonardosimoura/ElasticSearchQuery</PackageProjectUrl>
     <RepositoryUrl>https://github.com/leonardosimoura/ElasticSearchQuery.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <Title>ElasticSearchQuery</Title>
     <Description>Simple IQueryable implementation for ElasticSearch</Description>
     <Authors>Leonardo Silvio de Moura</Authors>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <UpdateVersionProperties>true</UpdateVersionProperties>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageTags>ElasticSearch Elastic Nest ElasticSearchQuery Query</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NEST" Version="[6.0.0,]" />
