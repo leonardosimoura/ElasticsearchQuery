@@ -11,7 +11,7 @@
     <Title>ElasticSearchQuery</Title>
     <Description>Simple IQueryable implementation for ElasticSearch</Description>
     <Authors>Leonardo Silvio de Moura</Authors>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <UpdateVersionProperties>true</UpdateVersionProperties>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
