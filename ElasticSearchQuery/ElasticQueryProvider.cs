@@ -51,7 +51,7 @@ namespace ElasticSearchQuery
             var elasticQueryResult = new QueryTranslator().Translate(expression, elementType);
 
             var method = typeof(ElasticClient)
-                           .GetMethods()
+                          .GetMethods()
                           .Where(m => m.Name == "Search")
                           .Select(m => new
                           {

@@ -161,7 +161,14 @@ namespace ElasticSearchQuery
             switch (binaryExpType)
             {
                 case ExpressionType.Equal:
-                    queryContainer = Query<object>.Term(t => t.Field(field).Value(value));
+                    if (typeof(System.Collections.IEnumerable).IsAssignableFrom(value.GetType()))
+                    {
+                        dynamic _tempCollection = value;
+                        var _temp = _tempCollection.ToArray();
+                        queryContainer = Query<object>.Terms(t => t.Field(field).Terms(_temp));                        
+                    }                        
+                    else
+                        queryContainer = Query<object>.Term(t => t.Field(field).Value(value));
                     break;
                 case ExpressionType.NotEqual:
                     queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(t => t.Field(field).Value(value))));
@@ -265,13 +272,41 @@ namespace ElasticSearchQuery
                     break;
                 case "Contains":
                     operacao = m.Method.Name;
-                    field = (m.Object as System.Linq.Expressions.MemberExpression).Member.Name.ToCamelCase();
 
-                    if (m.Arguments[0] is ConstantExpression)
-                        value = (m.Arguments[0] as ConstantExpression).Value;
+                    var memberContainsExp = (m.Object as MemberExpression);
 
-                    SetTextSearch();
+                    if (memberContainsExp != null)
+                    {
+                        if (memberContainsExp.Expression is ConstantExpression)
+                        {
+                            var constMemberExp = memberContainsExp.Expression as ConstantExpression;
+                            var constMemberLambdaExp = Expression.Lambda(constMemberExp).Compile();
+                            var constMemberExpValue = constMemberLambdaExp.DynamicInvoke();
+                            var resultConstMemberExpValue = constMemberExpValue.GetType().GetField(memberContainsExp.Member.Name).GetValue(constMemberExpValue);
 
+                            if (typeof(System.Collections.IEnumerable).IsAssignableFrom(resultConstMemberExpValue.GetType()))
+                            {
+                                value = resultConstMemberExpValue;//Convert.ChangeType(resultConstMemberExpValue, resultConstMemberExpValue.GetType());
+                                field = (m.Arguments.First() as MemberExpression)?.Member.Name.ToCamelCase();
+                                binaryExpType =  ExpressionType.Equal;//To make a terms query
+                                SetQuery();
+                            }
+                            else
+                            {
+                                field = memberContainsExp.Member.Name.ToCamelCase();
+                                if (m.Arguments[0] is ConstantExpression)
+                                    value = (m.Arguments[0] as ConstantExpression).Value;
+                                SetTextSearch();
+                            }
+                        }
+                        else
+                        {
+                            field = memberContainsExp.Member.Name.ToCamelCase();
+                            if (m.Arguments[0] is ConstantExpression)
+                                value = (m.Arguments[0] as ConstantExpression).Value;
+                            SetTextSearch();
+                        }
+                    } 
                     return m;
                 case "StartsWith":
                     operacao = m.Method.Name;

@@ -1,3 +1,4 @@
+using Bogus;
 using Nest;
 using System;
 using System.Collections.Generic;
@@ -48,6 +49,20 @@ namespace ElasticSearchQuery.Tests
             client.Refresh("producttest");
         }
 
+        private IEnumerable<ProductTest> GenerateData(int size, params ProductTest[] additionalData)
+        {
+            var testsProducts = new Faker<ProductTest>("pt_BR")    
+                                .RuleFor(o => o.Name ,f => f.Commerce.ProductName())
+                                .RuleFor(o => o.Price, f => f.Finance.Amount(1))
+                                .RuleFor(o => o.ProductId, f => Guid.NewGuid())
+                                .FinishWith((f, p) =>
+                                {
+                                    p.NameAsText = p.Name;
+                                });
+
+            return testsProducts.Generate(size).Union(additionalData);
+        }
+
         [Theory]
         [InlineData("customindex", "customindex")]
         [InlineData("mycustomidx", "mycustomidx")]
@@ -55,12 +70,7 @@ namespace ElasticSearchQuery.Tests
         [InlineData("productindex", "productindextype")]
         public void UsingCustomMapper(string indexName , string indexType)
         {
-            var productList = new List<ProductTest>();
-
-            for (int i = 0; i < 1000; i++)
-            {
-                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
-            }
+            var productList = GenerateData(1000);
 
             var client = ObterCliente();
 
@@ -81,14 +91,40 @@ namespace ElasticSearchQuery.Tests
         }
 
         [Fact]
+        public void WhereWithCollectionContainsMethod()
+        {
+
+            var products = new ProductTest[]
+            {
+                new ProductTest(Guid.NewGuid(), "Product A", 99),
+                new ProductTest(Guid.NewGuid(), "Product B", 150),
+                new ProductTest(Guid.NewGuid(), "Product C", 200),
+                new ProductTest(Guid.NewGuid(), "Product D", 300)
+            };
+
+            var productList = GenerateData(1000, products);
+
+            AddData(productList.ToArray());
+
+            var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+
+            var productsIds = products.Select(s => s.ProductId).ToList();
+
+            query = query.Where(w => productsIds.Contains(w.ProductId));
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.True(result.All(a => products.Any(p => p.ProductId == a.ProductId)));
+        }
+
+        [Fact]
         public void OrderByAndWhere()
         {
-            var productList = new List<ProductTest>();
+            var product = new ProductTest(Guid.NewGuid(), "Product A", 99);
 
-            for (int i = 0; i < 1000; i++)
-            {
-                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
-            }
+            var productList = GenerateData(1000, product);
 
             AddData(productList.ToArray());
             var client = ObterCliente();
@@ -99,20 +135,14 @@ namespace ElasticSearchQuery.Tests
 
             var result = query.ToList();
             Assert.NotEmpty(result);
-            Assert.Single(result);
-            Assert.Equal("ProductTest 99", result.First().Name);
+            Assert.Contains(result, f=>  f.ProductId == product.ProductId);           
             Assert.Equal(99, result.First().Price);
         }
 
         [Fact]
         public void OrderBy()
         {
-            var productList = new List<ProductTest>();
-
-            for (int i = 0; i < 1000; i++)
-            {
-                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
-            }
+            var productList = GenerateData(1000);
 
             AddData(productList.ToArray());
             var client = ObterCliente();
@@ -122,20 +152,20 @@ namespace ElasticSearchQuery.Tests
             query = query.OrderBy(o => o.Name).ThenBy(o => o.Price);
 
             var result = query.ToList();
+
+            var product = productList.OrderBy(o => o.Name).ThenBy(o => o.Price).First();
+
             Assert.NotEmpty(result);
-            Assert.Equal("ProductTest 0", result.First().Name);
-            Assert.Equal(0, result.First().Price);
+            Assert.Contains(result, f => f.ProductId == product.ProductId);
+            Assert.Equal(product.Price, result.First().Price);
         }
 
         [Fact]
         public void OrderByDescendingAndWhere()
         {
-            var productList = new List<ProductTest>();
+            var product = new ProductTest(Guid.NewGuid(), "Product A", 150);
 
-            for (int i = 0; i < 1000; i++)
-            {
-                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
-            }
+            var productList = GenerateData(1000, product);
 
             AddData(productList.ToArray());
             var client = ObterCliente();
@@ -146,20 +176,14 @@ namespace ElasticSearchQuery.Tests
             query = query.Where(w => w.Price == 150).OrderByDescending(o => o.Name).ThenByDescending(o => o.Price);
 
             var result = query.ToList();
-            Assert.Single(result);
-            Assert.Equal("ProductTest 150", result.First().Name);
-            Assert.Equal(150, result.First().Price);
+            Assert.Contains(result, f => f.ProductId == product.ProductId);
+            Assert.Equal(product.Price, result.First().Price);
         }
 
         [Fact]
         public void OrderByDescending()
         {
-            var productList = new List<ProductTest>();
-
-            for (int i = 0; i < 1000; i++)
-            {
-                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
-            }
+            var productList = GenerateData(1000);
 
             AddData(productList.ToArray());
 
@@ -168,11 +192,13 @@ namespace ElasticSearchQuery.Tests
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
 
             query = query.OrderByDescending(o => o.Name).ThenByDescending(o => o.Price);
+            var product = productList.OrderByDescending(o => o.Name).ThenByDescending(o => o.Price).First();
 
-            var result = query.ToList();
+            var result = query.ToList();            
+
             Assert.NotEmpty(result);
-            Assert.Equal("ProductTest 999", result.First().Name);
-            Assert.Equal(999, result.First().Price);
+            Assert.Contains(result, f => f.ProductId == product.ProductId);
+            Assert.Equal(product.Price, result.First().Price);
         }
 
         [Theory]
@@ -181,12 +207,7 @@ namespace ElasticSearchQuery.Tests
         [InlineData(50, 30)]
         public void TakeSkipValid(int skip , int take)
         {
-            var productList = new List<ProductTest>();
-
-            for (int i = 0; i < 1000; i++)
-            {
-                productList.Add(new ProductTest(Guid.NewGuid(), "ProductTest " + i, i));
-            }
+            var productList = GenerateData(1000);
 
             AddData(productList.ToArray());
 
@@ -206,7 +227,9 @@ namespace ElasticSearchQuery.Tests
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
 
-            AddData(produto);
+            var productList = GenerateData(1000, produto);
+
+            AddData(productList.ToArray());
 
             var client = ObterCliente();
 
@@ -234,7 +257,7 @@ namespace ElasticSearchQuery.Tests
             var pNome = produto.Name;
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-            query = query.Where(w => w.Name.EndsWith("aabbcc"));
+            query = query.Where(w => w.Name.EndsWith("zzzzzzz"));
 
             var result = query.ToList();
             Assert.Empty(result);
@@ -245,7 +268,9 @@ namespace ElasticSearchQuery.Tests
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
 
-            AddData(produto);
+            var productList = GenerateData(1000, produto);
+
+            AddData(productList.ToArray());
 
             var client = ObterCliente();
 
@@ -265,7 +290,9 @@ namespace ElasticSearchQuery.Tests
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
 
-            AddData(produto);
+            var productList = GenerateData(1000, produto);
+
+            AddData(productList.ToArray());
 
             var client = ObterCliente();
 
@@ -273,7 +300,7 @@ namespace ElasticSearchQuery.Tests
             var pNome = produto.Name;
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-            query = query.Where(w => w.Name.StartsWith("Leite"));
+            query = query.Where(w => w.Name.StartsWith("zzzzzzzzzzz"));
 
             var result = query.ToList();
             Assert.Empty(result);
@@ -538,6 +565,10 @@ namespace ElasticSearchQuery.Tests
     [ElasticsearchType(Name= "producttest")]
     public class ProductTest
     {
+        public ProductTest()
+        {
+
+        }
         public ProductTest(Guid productId, string name, decimal price)
         {
             ProductId = productId;
