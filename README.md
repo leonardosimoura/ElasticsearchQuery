@@ -34,11 +34,13 @@ Add Custom Map for properties (Columns names / Types).
 Improve support for linq queries.
 
 ## Latest Work
-Add Custom Map for class (Index/Type names).
+Added support for TermsQuery (collections contains methods)
 
-Add Take and Skip support (Added).
+Added Custom Map for class (Index/Type names).
 
-Add OrderBy support (Added).
+Added Take and Skip support.
+
+Added OrderBy support.
 
 ## More About ElasticSearch
 https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
