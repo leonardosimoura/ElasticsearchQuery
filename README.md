@@ -1,14 +1,5 @@
 # ElasticSearchQuery
-Its a simple IQueryable implementation for ElasticSearch
-
-## Under development
-
-Some queries are suported for now.(see the Test project)
-
-Is an early development. Have a lot of improvements and implementations to do.
-
-Using Netstandard 2.0
-
+Its a simple IQueryable implementation for ElasticSearch built with Netstandard 2.0.
 
 ## Usage
  ```csharp
@@ -17,6 +8,9 @@ Using Netstandard 2.0
  var query = ElasticSearchQueryFactory.CreateQuery<Product>(client);
  
  ```
+ 
+See the Test project for the queries currently supported.
+ 
 ## Custom Index/Type Mapping
   ```csharp
  
@@ -31,6 +25,8 @@ Using Netstandard 2.0
 
 Add Custom Map for properties (Columns names / Types).
 
+Add better support for fulltext queries.
+
 Improve support for linq queries.
 
 ## Latest Work
@@ -41,6 +37,10 @@ Added Custom Map for class (Index/Type names).
 Added Take and Skip support.
 
 Added OrderBy support.
+
+## Under development
+
+We have some improvements and implementations to do.
 
 ## More About ElasticSearch
 https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
