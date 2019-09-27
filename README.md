@@ -30,6 +30,8 @@ Add better support for fulltext queries.
 Improve support for linq queries.
 
 ## Latest Work
+Added Count support.
+
 Added support for TermsQuery (collections contains methods)
 
 Added Custom Map for class (Index/Type names).
