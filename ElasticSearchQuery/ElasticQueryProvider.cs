@@ -65,7 +65,14 @@ namespace ElasticSearchQuery
                         .Select(x => x.Method).First();
 
             MethodInfo generic = method.MakeGenericMethod(elementType);
-            var request = generic.Invoke(_elasticClient, new object[] { elasticQueryResult.SearchRequest });
+            dynamic request = generic.Invoke(_elasticClient, new object[] { elasticQueryResult.SearchRequest });
+
+
+            if (elasticQueryResult.ReturnNumberOfRows)
+            {
+                return Convert.ChangeType( request.HitsMetadata.Total, expType);
+            }
+
             var closedGeneric = typeof(SearchResponse<>).MakeGenericType(elementType);           
 
             //Simple Agregation

@@ -17,6 +17,7 @@ namespace ElasticSearchQuery
         List<GroupBy> fieldsGroupBy = new List<GroupBy>();
         List<Aggregation> aggregations = new List<Aggregation>();
         List<OrderBy> fieldsOrderBy = new List<OrderBy>();
+        private bool returnNumberOfRows = false;
         string operacao = string.Empty;
         ExpressionType binaryExpType;
         object value = null;
@@ -241,13 +242,19 @@ namespace ElasticSearchQuery
 
             SetOrderBy();
 
-            var result = new QueryTranslateResult(_searchRequest, fieldsGroupBy, aggregations);
+            if (returnNumberOfRows)
+            {
+                //_searchRequest.
+            }
+
+            var result = new QueryTranslateResult(_searchRequest, fieldsGroupBy, aggregations, returnNumberOfRows);
 
             return result;
         }
 
         protected override Expression VisitMethodCall(MethodCallExpression m)
         {
+
             switch (m.Method.Name)
             {
                 case "Where":
@@ -257,6 +264,30 @@ namespace ElasticSearchQuery
 
                     return m;
                 case "Count":
+
+                    if (m.Arguments.Count == 1)
+                    {
+                        if (m.Arguments[0] is MethodCallExpression)
+                        {
+                            Visit(m.Arguments[0]);
+                        }
+                        _searchRequest.From = 0;
+                        _searchRequest.Size = 0;
+                        returnNumberOfRows = true;
+                    }
+                    else
+                    {
+                        var countAggLambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
+                        if (countAggLambda.Body is MemberExpression)
+                        {
+                            var memberExp = countAggLambda.Body as MemberExpression;
+                            aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
+                        }
+                        SetAggregation();                        
+                    }
+                    return m;
+
+                    break;
                 case "Min":
                 case "Max":
                 case "Sum":
@@ -526,11 +557,12 @@ namespace ElasticSearchQuery
 
     internal class QueryTranslateResult
     {
-        public QueryTranslateResult(SearchRequest searchRequest, IEnumerable<GroupBy> groupBy, IEnumerable<Aggregation> aggregation)
+        public QueryTranslateResult(SearchRequest searchRequest, IEnumerable<GroupBy> groupBy, IEnumerable<Aggregation> aggregation, bool returnNumberOfRows)
         {
             SearchRequest = searchRequest;
             GroupBy = groupBy;
             Aggregation = aggregation;
+            ReturnNumberOfRows = returnNumberOfRows;
         }
 
         public SearchRequest SearchRequest { get; private set; }
@@ -538,6 +570,8 @@ namespace ElasticSearchQuery
         public IEnumerable<GroupBy> GroupBy { get; private set; }
 
         public IEnumerable<Aggregation> Aggregation { get; private set; }
+
+        public bool ReturnNumberOfRows { get; private set; }
     }
 
     internal class OrderBy

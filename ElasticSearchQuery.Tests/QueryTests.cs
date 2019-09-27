@@ -12,7 +12,7 @@ namespace ElasticSearchQuery.Tests
     {
         private IElasticClient ObterCliente()
         {
-            var node = new Uri("http://localhost:9200/");
+            var node = new Uri("http://192.168.99.102:9200/");
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
@@ -497,7 +497,7 @@ namespace ElasticSearchQuery.Tests
         }
 
         [Fact]
-        public void AggregacaoSum()
+        public void AggregationSum()
         {
             var produto1 = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
             var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest 2", 5M);
@@ -507,9 +507,44 @@ namespace ElasticSearchQuery.Tests
             var client = ObterCliente();
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-            var precoTotal = query.Sum(s => s.Price);
+            var totalPrice = query.Sum(s => s.Price);
 
-            Assert.Equal(produto1.Price + produto2.Price, precoTotal);
+            Assert.Equal(produto1.Price + produto2.Price, totalPrice);
+        }
+
+        [Fact]
+        public void AggregationCount()
+        {
+            var produto1 = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+            var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest 2", 5M);
+
+            AddData(produto1, produto2);
+
+            var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var count = query.Count();
+
+            Assert.Equal(2, count);
+        }
+
+        [Fact]
+        public void AggregationCountWithCoditions()
+        {
+            var produto1 = new ProductTest(Guid.NewGuid(), "ProductTest", 25.5M);
+            var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest 2", 5M);
+            var produto3 = new ProductTest(Guid.NewGuid(), "ProductTest 3", 6M);
+            var produto4 = new ProductTest(Guid.NewGuid(), "ProductTest 4", 7M);
+            var produto5 = new ProductTest(Guid.NewGuid(), "ProductTest 5", 8M);
+
+            AddData(produto1, produto2, produto3, produto4, produto5);
+
+            var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var count = query.Where(w => w.Price < 10M).Count();
+
+            Assert.Equal(4, count);
         }
 
         [Fact]
