@@ -12,7 +12,7 @@ namespace ElasticSearchQuery.Tests
     {
         private IElasticClient ObterCliente()
         {
-            var node = new Uri("http://192.168.99.102:9200/");
+            var node = new Uri("http://localhost:9200/");
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
