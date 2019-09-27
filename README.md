@@ -41,6 +41,7 @@ Added OrderBy support.
 ## Under development
 
 We have some improvements and implementations to do.
+Any help is welcome
 
 ## More About ElasticSearch
 https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
