@@ -35,6 +35,8 @@ Improve support for linq queries.
 ## Latest Work
 Support to ElasticSearch 7.X
 
+Added Count support.
+
 Added support for TermsQuery (collections contains methods)
 
 Added Custom Map for class (Index/Type names).
@@ -46,6 +48,7 @@ Added OrderBy support.
 ## Under development
 
 We have some improvements and implementations to do.
+Any help is welcome
 
 ## More About ElasticSearch
 https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
