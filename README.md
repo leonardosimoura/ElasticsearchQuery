@@ -19,7 +19,10 @@ See the Test project for the queries currently supported.
  ```
 ## Suported Nest Versions
 
-6.0.0 - 6.6.0
+Version 0.1.5 Supports ElasticSearch 7.X
+
+Version 0.1.4 and lower Supports ElasticSearch 6.0.0 - 6.6.0
+
 
 ## TODO
 
@@ -30,6 +33,8 @@ Add better support for fulltext queries.
 Improve support for linq queries.
 
 ## Latest Work
+Support to ElasticSearch 7.X
+
 Added support for TermsQuery (collections contains methods)
 
 Added Custom Map for class (Index/Type names).

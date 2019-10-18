@@ -12,7 +12,7 @@ namespace ElasticSearchQuery.Tests
     {
         private IElasticClient ObterCliente()
         {
-            var node = new Uri("http://localhost:9200/");
+            var node = new Uri("http://192.168.99.102:9200/");
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
@@ -23,30 +23,30 @@ namespace ElasticSearchQuery.Tests
 
         private void CreateIndexTest(IElasticClient client, string indexName = "producttest" , string indexType = "producttest")
         {
-            client.CreateIndex(indexName, cr => cr.Mappings(mp =>
-                       mp.Map<ProductTest>(indexType, m =>
+            client.Indices.Create(indexName, cr => 
+                       cr.Map<ProductTest>( m =>
                               m.AutoMap()                              
                               .Properties(ps => ps
                                   .Text(p => p.Name(na => na.ProductId).Analyzer("keyword").Fielddata(true))
                                   .Text(p => p.Name(na => na.Name).Analyzer("keyword").Fielddata(true))
                                   .Text(p => p.Name(na => na.NameAsText).Analyzer("standard").Fielddata(true))
                                   .Number(p => p.Name(na => na.Price).Type(NumberType.Double))
-                                  ))));
+                                  )));
         }
 
         private void AddData(params ProductTest[] data)
         {
             var client = ObterCliente();
 
-            if (client.IndexExists("producttest").Exists)            
+            if (client.Indices.Exists(Indices.Index("producttest")).Exists)            
                 client.DeleteByQuery<ProductTest>(a => a.Query(q => q.MatchAll())
-                    .Index("producttest").Type("producttest"));            
+                    .Index("producttest"));            
             else            
                 CreateIndexTest(client);                           
             
-            client.IndexMany(data, "producttest", "producttest");
+            client.IndexMany(data, "producttest");
 
-            client.Refresh("producttest");
+            client.Indices.Refresh("producttest");
         }
 
         private IEnumerable<ProductTest> GenerateData(int size, params ProductTest[] additionalData)
@@ -74,13 +74,13 @@ namespace ElasticSearchQuery.Tests
 
             var client = ObterCliente();
 
-            if (client.IndexExists(indexName).Exists)
-                client.DeleteIndex(indexName);
+            if (client.Indices.Exists(indexName).Exists)
+                client.Indices.Delete(indexName);
 
             CreateIndexTest(client, indexName, indexType);
 
-            client.IndexMany(productList, indexName, indexType);
-            client.Refresh(indexName);
+            client.IndexMany(productList, indexName);
+            client.Indices.Refresh(indexName);
 
             ElasticQueryMapper.Map(typeof(ProductTest), indexName, indexType);
 

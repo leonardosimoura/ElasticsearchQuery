@@ -70,7 +70,7 @@ namespace ElasticSearchQuery
 
             if (elasticQueryResult.ReturnNumberOfRows)
             {
-                return Convert.ChangeType( request.HitsMetadata.Total, expType);
+                return Convert.ChangeType(request.HitsMetadata.Total.Value, expType);
             }
 
             var closedGeneric = typeof(SearchResponse<>).MakeGenericType(elementType);           

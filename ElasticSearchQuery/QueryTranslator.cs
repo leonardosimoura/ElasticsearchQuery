@@ -164,9 +164,9 @@ namespace ElasticSearchQuery
                 case ExpressionType.Equal:
                     if (typeof(System.Collections.IEnumerable).IsAssignableFrom(value.GetType()))
                     {
-                        dynamic _tempCollection = value;
-                        var _temp = _tempCollection.ToArray();
-                        queryContainer = Query<object>.Terms(t => t.Field(field).Terms(_temp));                        
+                        var _tempCollection = value as System.Collections.IEnumerable;
+                        //var _temp = _tempCollection.ToArray();
+                        queryContainer = Query<object>.Terms(t => t.Field(field).Terms(_tempCollection));                        
                     }                        
                     else
                         queryContainer = Query<object>.Term(t => t.Field(field).Value(value));
@@ -216,7 +216,7 @@ namespace ElasticSearchQuery
                 var _sortList = new List<ISort>();
                 foreach (var item in fieldsOrderBy)
                 {
-                    _sortList.Add(new SortField()
+                    _sortList.Add(new FieldSort()
                     {
                         Field = item.Field,
                         Order = item.Order
@@ -231,7 +231,9 @@ namespace ElasticSearchQuery
         {
             this.elementType = elementType;
             var queryMap = ElasticQueryMapper.GetMap(this.elementType);
-            _searchRequest = new SearchRequest(queryMap.Index, queryMap.IndexTypes);
+            var _index = Indices.Index(queryMap.Index);
+
+            _searchRequest = new SearchRequest(_index);
 
             if (expression is ConstantExpression == false)            
                 this.Visit(expression);            
