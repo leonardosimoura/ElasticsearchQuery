@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ElasticSearchQuery\ElasticSearchQuery.csproj" />
+    <ProjectReference Include="..\ElasticSearchQuery\ElasticsearchQuery.csproj" />
   </ItemGroup>
 
 </Project>

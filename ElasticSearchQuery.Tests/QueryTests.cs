@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading;
 using Xunit;
 
-namespace ElasticSearchQuery.Tests
+namespace ElasticsearchQuery.Tests
 {
     public class QueryTests
     {

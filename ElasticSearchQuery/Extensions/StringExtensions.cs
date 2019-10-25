@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace ElasticSearchQuery.Extensions
+namespace ElasticsearchQuery.Extensions
 {
     public static class StringExtensions
     {

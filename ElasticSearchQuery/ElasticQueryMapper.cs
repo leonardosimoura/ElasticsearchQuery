@@ -1,4 +1,4 @@
-﻿using ElasticSearchQuery.Extensions;
+﻿using ElasticsearchQuery.Extensions;
 using Nest;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace ElasticSearchQuery
+namespace ElasticsearchQuery
 {
     public class ElasticQueryMapper
     {
@@ -65,6 +65,7 @@ namespace ElasticSearchQuery
         }
 
         public string Index { get;private set; }
+        [Obsolete("As elasticsearch will not support more types this Will bee remove in next releases.")]
         public string[] IndexTypes { get; private set; }
     }
 }

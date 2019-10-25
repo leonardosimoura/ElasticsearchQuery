@@ -1,10 +1,10 @@
-﻿using ElasticSearchQuery.Helpers;
+﻿using ElasticsearchQuery.Helpers;
 using System;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace ElasticSearchQuery
+namespace ElasticsearchQuery
 {
     internal abstract class QueryProvider : IQueryProvider
     {

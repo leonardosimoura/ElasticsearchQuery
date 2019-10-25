@@ -1,5 +1,5 @@
-﻿using ElasticSearchQuery.Extensions;
-using ElasticSearchQuery.Helpers;
+﻿using ElasticsearchQuery.Extensions;
+using ElasticsearchQuery.Helpers;
 using Nest;
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace ElasticSearchQuery
+namespace ElasticsearchQuery
 {
     internal class QueryTranslator : ExpressionVisitor
     {

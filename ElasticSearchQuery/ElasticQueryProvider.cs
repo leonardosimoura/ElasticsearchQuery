@@ -1,5 +1,5 @@
-﻿using ElasticSearchQuery.Extensions;
-using ElasticSearchQuery.Helpers;
+﻿using ElasticsearchQuery.Extensions;
+using ElasticsearchQuery.Helpers;
 using Nest;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
-namespace ElasticSearchQuery
+namespace ElasticsearchQuery
 {
     internal class ElasticQueryProvider : QueryProvider
     {
