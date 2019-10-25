@@ -1,4 +1,4 @@
-# ElasticSearchQuery
+# ElasticsearchQuery
 Its a simple IQueryable implementation for ElasticSearch built with Netstandard 2.0.
 
 ## Usage
@@ -19,9 +19,9 @@ See the Test project for the queries currently supported.
  ```
 ## Suported Nest Versions
 
-Version 0.1.5 Supports ElasticSearch 7.X
+Version 0.1.5 Supports Elasticsearch 7.X
 
-Version 0.1.4 and lower Supports ElasticSearch 6.0.0 - 6.6.0
+Version 0.1.4 and lower Supports Elasticsearch 6.0.0 - 6.6.0
 
 
 ## TODO
@@ -33,7 +33,7 @@ Add better support for fulltext queries.
 Improve support for linq queries.
 
 ## Latest Work
-Support to ElasticSearch 7.X
+Support to Elasticsearch 7.X
 
 Added Count support.
 
@@ -50,5 +50,5 @@ Added OrderBy support.
 We have some improvements and implementations to do.
 Any help is welcome
 
-## More About ElasticSearch
+## More About Elasticsearch
 https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
