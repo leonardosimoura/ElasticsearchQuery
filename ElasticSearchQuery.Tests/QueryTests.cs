@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using ElasticsearchQuery.Extensions;
+using ElasticsearchQuery.QueryExtensions;
 using Xunit;
 
 namespace ElasticsearchQuery.Tests
@@ -12,7 +14,7 @@ namespace ElasticsearchQuery.Tests
     {
         private IElasticClient ObterCliente()
         {
-            var node = new Uri("http://192.168.99.102:9200/");
+            var node = new Uri("http://192.168.99.104:9200/");
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
@@ -61,6 +63,35 @@ namespace ElasticsearchQuery.Tests
                                 });
 
             return testsProducts.Generate(size).Union(additionalData);
+        }
+
+        [Fact]
+        public void SimpleQueryValid()
+        {
+
+            var products = new ProductTest[]
+            {
+                new ProductTest(Guid.NewGuid(), "Product A", 99),
+                new ProductTest(Guid.NewGuid(), "Product B", 150),
+                new ProductTest(Guid.NewGuid(), "Product C", 200),
+                new ProductTest(Guid.NewGuid(), "Product D", 300)
+            };
+
+            var productList = GenerateData(1000, products);
+
+            AddData(productList.ToArray());
+
+            var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+
+            var productsIds = products.Select(s => s.ProductId).ToList();
+
+            query = query.SimpleQuery(w => w.Name, "A");
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.Contains(result, f => f.Name == "Product A");
         }
 
         [Theory]
@@ -136,6 +167,26 @@ namespace ElasticsearchQuery.Tests
             var result = query.ToList();
             Assert.NotEmpty(result);
             Assert.Contains(result, f=>  f.ProductId == product.ProductId);           
+            Assert.Equal(99, result.First().Price);
+        }
+
+        [Fact]
+        public void MatchPhrase()
+        {
+            var product = new ProductTest(Guid.NewGuid(), "Product of category", 99);
+
+            var productList = GenerateData(1000, product);
+
+            AddData(productList.ToArray());
+            var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+
+            query = query.Where(w => w.NameAsText.MatchPhrase("of category"));
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.Contains(result, f => f.ProductId == product.ProductId);
             Assert.Equal(99, result.First().Price);
         }
 

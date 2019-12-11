@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ElasticsearchQuery", "Elast
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ElasticsearchQuery.Tests", "ElasticSearchQuery.Tests\ElasticsearchQuery.Tests.csproj", "{DF20074F-1732-4A5B-9F10-9C7E51A2E85D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ElasticsearchQuery.QueryExtensions", "ElasticsearchQuery.QueryExtensions\ElasticsearchQuery.QueryExtensions.csproj", "{00F84943-B54E-44A6-AB41-2713FDCD05A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{DF20074F-1732-4A5B-9F10-9C7E51A2E85D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF20074F-1732-4A5B-9F10-9C7E51A2E85D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DF20074F-1732-4A5B-9F10-9C7E51A2E85D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00F84943-B54E-44A6-AB41-2713FDCD05A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00F84943-B54E-44A6-AB41-2713FDCD05A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00F84943-B54E-44A6-AB41-2713FDCD05A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00F84943-B54E-44A6-AB41-2713FDCD05A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -136,6 +136,9 @@ namespace ElasticsearchQuery
                 case "EndsWith":
                     queryContainer = Query<object>.Regexp(f => f.Field(field).Value(".*" + value.ToString()));
                     break;
+                case "MatchPhrase":
+                    queryContainer = Query<object>.MatchPhrase(f => f.Field(field).Query(value.ToString()));
+                    break;
                 default:
                     break;
             }
@@ -342,6 +345,7 @@ namespace ElasticsearchQuery
                     } 
                     return m;
                 case "StartsWith":
+                case "EndsWith":
                     operacao = m.Method.Name;
                     field = (m.Object as System.Linq.Expressions.MemberExpression).Member.Name.ToCamelCase();
 
@@ -352,12 +356,12 @@ namespace ElasticsearchQuery
 
                     return m;
                     break;
-                case "EndsWith":
+                case "MatchPhrase":
                     operacao = m.Method.Name;
-                    field = (m.Object as System.Linq.Expressions.MemberExpression).Member.Name.ToCamelCase();
+                    field = (m.Arguments[0] as System.Linq.Expressions.MemberExpression).Member.Name.ToCamelCase();
 
-                    if (m.Arguments[0] is ConstantExpression)
-                        value = (m.Arguments[0] as ConstantExpression).Value;
+                    if (m.Arguments[1] is ConstantExpression)
+                        value = (m.Arguments[1] as ConstantExpression).Value;
 
                     SetTextSearch();
 
