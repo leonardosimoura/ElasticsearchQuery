@@ -12,11 +12,6 @@ namespace ElasticsearchQuery
         IQueryProvider provider;
         Expression expression;
 
-        public void SimpleQuery(Expression<Func<T, object>> exp, string query)
-        {
-            //GetMethodInfo<T>((s, p) => Queryable.Where(s, p));
-        }
-
         public ElasticQuery(IQueryProvider provider)
         {
             if (provider == null)

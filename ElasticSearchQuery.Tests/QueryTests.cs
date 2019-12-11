@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using ElasticsearchQuery.Extensions;
-using ElasticsearchQuery.QueryExtensions;
 using Xunit;
 
 namespace ElasticsearchQuery.Tests
@@ -63,35 +62,6 @@ namespace ElasticsearchQuery.Tests
                                 });
 
             return testsProducts.Generate(size).Union(additionalData);
-        }
-
-        [Fact]
-        public void SimpleQueryValid()
-        {
-
-            var products = new ProductTest[]
-            {
-                new ProductTest(Guid.NewGuid(), "Product A", 99),
-                new ProductTest(Guid.NewGuid(), "Product B", 150),
-                new ProductTest(Guid.NewGuid(), "Product C", 200),
-                new ProductTest(Guid.NewGuid(), "Product D", 300)
-            };
-
-            var productList = GenerateData(1000, products);
-
-            AddData(productList.ToArray());
-
-            var client = ObterCliente();
-
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-
-            var productsIds = products.Select(s => s.ProductId).ToList();
-
-            query = query.SimpleQuery(w => w.Name, "A");
-
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.Contains(result, f => f.Name == "Product A");
         }
 
         [Theory]

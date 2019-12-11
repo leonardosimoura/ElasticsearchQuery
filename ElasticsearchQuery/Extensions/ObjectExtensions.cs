@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text;
 
-namespace ElasticsearchQuery.QueryExtensions
+namespace ElasticsearchQuery.Extensions
 {
     public static class ObjectExtensions
     {

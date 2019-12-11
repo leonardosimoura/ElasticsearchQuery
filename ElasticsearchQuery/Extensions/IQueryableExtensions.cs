@@ -8,11 +8,6 @@ namespace ElasticsearchQuery.Extensions
 {
     public static class IQueryableExtensions
     {
-        public static IQueryable<TEntity> SimpleQuery<TEntity>(this IQueryable<TEntity>  queryable,Expression<Func<TEntity,object>> exp , string query)
-        {
-            var _elasticQuery = queryable as ElasticQuery<TEntity>;
-            _elasticQuery.SimpleQuery(exp, query);
-            return queryable;
-        }
+        
     }
 }
