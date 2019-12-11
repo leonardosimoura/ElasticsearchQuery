@@ -371,6 +371,28 @@ namespace ElasticsearchQuery
 
                     return m;
                     break;
+                case "Exists":
+
+                    var mExpExists = ((ExpressionHelper.StripQuotes(m.Arguments[1]) as LambdaExpression).Body as MemberExpression).Member.Name.ToCamelCase();
+                    queryContainer = Query<object>.Exists(f => f.Field(mExpExists));
+
+                    if (_searchRequest.Query == null)
+                    {
+                        _searchRequest.Query = queryContainer;
+                    }
+                    else
+                    {
+                        if (AndCondition)
+                        {
+                            _searchRequest.Query = _searchRequest.Query && _searchRequest.Query;
+                        }
+                        else
+                        {
+                            _searchRequest.Query = _searchRequest.Query || _searchRequest.Query;
+                        }
+                    }
+                    return m;
+                    break;
                 case "MultiMatch":
                     operacao = m.Method.Name;
 

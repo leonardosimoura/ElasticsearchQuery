@@ -11,5 +11,10 @@ namespace ElasticsearchQuery.QueryExtensions
         {
             return true;
         }
+
+        public static bool Exists<TObj>(this TObj obj, Expression<Func<TObj, object>> field)
+        {
+            return true;
+        }
     }
 }

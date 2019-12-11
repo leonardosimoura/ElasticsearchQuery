@@ -210,7 +210,24 @@ namespace ElasticsearchQuery.Tests
             Assert.Equal(99, result.First().Price);
         }
 
-        
+        [Fact]
+        public void Exists()
+        {
+            var product = new ProductTest(Guid.NewGuid(), null, 99);
+
+            var productList = GenerateData(1000, product);
+
+            AddData(productList.ToArray());
+            var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+
+            query = query.Where(w => w.Exists(t => t.NameAsText));
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.DoesNotContain(result, f => f.ProductId == product.ProductId);
+        }
 
         [Fact]
         public void OrderBy()
