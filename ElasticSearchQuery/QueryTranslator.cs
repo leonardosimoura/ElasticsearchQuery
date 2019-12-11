@@ -139,6 +139,10 @@ namespace ElasticsearchQuery
                 case "MatchPhrase":
                     queryContainer = Query<object>.MatchPhrase(f => f.Field(field).Query(value.ToString()));
                     break;
+                case "MultiMatch":
+                    var _fields = field.Split(';');
+                    queryContainer = Query<object>.MultiMatch(f => f.Fields(_fields).Query(value.ToString()));
+                    break;
                 default:
                     break;
             }
@@ -359,6 +363,31 @@ namespace ElasticsearchQuery
                 case "MatchPhrase":
                     operacao = m.Method.Name;
                     field = (m.Arguments[0] as System.Linq.Expressions.MemberExpression).Member.Name.ToCamelCase();
+
+                    if (m.Arguments[1] is ConstantExpression)
+                        value = (m.Arguments[1] as ConstantExpression).Value;
+
+                    SetTextSearch();
+
+                    return m;
+                    break;
+                case "MultiMatch":
+                    operacao = m.Method.Name;
+
+                    var fields = (m.Arguments[2] as NewArrayExpression);
+                    
+                    foreach (var item in fields.Expressions)
+                    {
+                        var itemMbExp = (ExpressionHelper.StripQuotes(item) as LambdaExpression).Body as MemberExpression;
+                        if (string.IsNullOrWhiteSpace(field))
+                        {
+                            field = itemMbExp.Member.Name.ToCamelCase();
+                        }
+                        else
+                        {
+                            field = field + ";" + itemMbExp.Member.Name.ToCamelCase();
+                        }
+                    }
 
                     if (m.Arguments[1] is ConstantExpression)
                         value = (m.Arguments[1] as ConstantExpression).Value;
