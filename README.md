@@ -33,6 +33,13 @@ Add better support for fulltext queries.
 Improve support for linq queries.
 
 ## Latest Work
+
+Added support to MatchPhrase FullText Query
+
+Added support to MultiMatch FullText Query
+
+Added support to Exists Query
+
 Support to ElasticSearch 7.X
 
 Added Count support.
