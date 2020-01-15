@@ -1,5 +1,5 @@
-# ElasticSearchQuery
-Its a simple IQueryable implementation for ElasticSearch built with Netstandard 2.0.
+# ElasticsearchQuery
+Its a simple IQueryable implementation for Elasticsearch built with Netstandard 2.0.
 
 ## Usage
  ```csharp
@@ -57,5 +57,5 @@ Added OrderBy support.
 We have some improvements and implementations to do.
 Any help is welcome
 
-## More About ElasticSearch
+## More About Elasticsearch
 https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
