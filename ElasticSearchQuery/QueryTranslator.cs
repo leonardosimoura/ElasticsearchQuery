@@ -23,6 +23,7 @@ namespace ElasticsearchQuery
         object value = null;
         private bool AndCondition = true;
         Type elementType;
+        bool denyCondition = false;
 
 
         private AggregationBase _aggregationBase;
@@ -124,7 +125,6 @@ namespace ElasticsearchQuery
 
         private void SetTextSearch()
         {
-            //TODO Create a mapping so when is need a full text query we know
             switch (operacao)
             {
                 case "Contains":
@@ -141,7 +141,14 @@ namespace ElasticsearchQuery
                     break;
                 case "MultiMatch":
                     var _fields = field.Split(';');
-                    queryContainer = Query<object>.MultiMatch(f => f.Fields(_fields).Query(value.ToString()));
+
+                    Func<MultiMatchQueryDescriptor<object>, IMultiMatchQuery> selector = f => f.Fields(_fields).Query(value.ToString());
+
+                    if (denyCondition)                    
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MultiMatch(selector)));                    
+                    else                    
+                        queryContainer = Query<object>.MultiMatch(selector);                    
+
                     break;
                 default:
                     break;
@@ -173,8 +180,8 @@ namespace ElasticsearchQuery
                     {
                         var _tempCollection = value as System.Collections.IEnumerable;
                         //var _temp = _tempCollection.ToArray();
-                        queryContainer = Query<object>.Terms(t => t.Field(field).Terms(_tempCollection));                        
-                    }                        
+                        queryContainer = Query<object>.Terms(t => t.Field(field).Terms(_tempCollection));
+                    }
                     else
                         queryContainer = Query<object>.Term(t => t.Field(field).Value(value));
                     break;
@@ -215,7 +222,7 @@ namespace ElasticsearchQuery
             }
         }
 
-        private  void SetOrderBy()
+        private void SetOrderBy()
         {
             if (fieldsOrderBy.Any())
             {
@@ -242,9 +249,9 @@ namespace ElasticsearchQuery
 
             _searchRequest = new SearchRequest(_index);
 
-            if (expression is ConstantExpression == false)            
-                this.Visit(expression);            
-            
+            if (expression is ConstantExpression == false)
+                this.Visit(expression);
+
             _searchRequest.Human = true;
             if (_searchRequest.Query == null)
                 _searchRequest.Query = Query<object>.MatchAll();
@@ -292,7 +299,7 @@ namespace ElasticsearchQuery
                             var memberExp = countAggLambda.Body as MemberExpression;
                             aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
                         }
-                        SetAggregation();                        
+                        SetAggregation();
                     }
                     return m;
 
@@ -328,7 +335,7 @@ namespace ElasticsearchQuery
                             {
                                 value = resultConstMemberExpValue;//Convert.ChangeType(resultConstMemberExpValue, resultConstMemberExpValue.GetType());
                                 field = (m.Arguments.First() as MemberExpression)?.Member.Name.ToCamelCase();
-                                binaryExpType =  ExpressionType.Equal;//To make a terms query
+                                binaryExpType = ExpressionType.Equal;//To make a terms query
                                 SetQuery();
                             }
                             else
@@ -346,7 +353,7 @@ namespace ElasticsearchQuery
                                 value = (m.Arguments[0] as ConstantExpression).Value;
                             SetTextSearch();
                         }
-                    } 
+                    }
                     return m;
                 case "StartsWith":
                 case "EndsWith":
@@ -397,7 +404,7 @@ namespace ElasticsearchQuery
                     operacao = m.Method.Name;
 
                     var fields = (m.Arguments[2] as NewArrayExpression);
-                    
+
                     foreach (var item in fields.Expressions)
                     {
                         var itemMbExp = (ExpressionHelper.StripQuotes(item) as LambdaExpression).Body as MemberExpression;
@@ -498,8 +505,8 @@ namespace ElasticsearchQuery
 
                     _searchRequest.From = _from;
 
-                    if (m.Arguments.First() is ConstantExpression == false)                    
-                        Visit(m.Arguments.First());   
+                    if (m.Arguments.First() is ConstantExpression == false)
+                        Visit(m.Arguments.First());
 
                     return m;
                     break;
@@ -513,11 +520,11 @@ namespace ElasticsearchQuery
                     {
                         var mExp = orderLambdaExp.Body as MemberExpression;
 
-                        fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(),(m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy")?SortOrder.Ascending: SortOrder.Descending));
+                        fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(), (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
                     }
 
-                    if (m.Arguments.First() is ConstantExpression == false)                    
-                        Visit(m.Arguments.First());                    
+                    if (m.Arguments.First() is ConstantExpression == false)
+                        Visit(m.Arguments.First());
 
                     return m;
                     break;
@@ -530,11 +537,14 @@ namespace ElasticsearchQuery
 
         protected override Expression VisitUnary(UnaryExpression u)
         {
+            denyCondition = false;
             switch (u.NodeType)
             {
                 case ExpressionType.Not:
-
-                    this.Visit(u.Operand);
+                    {
+                        denyCondition = true;
+                        this.Visit(u.Operand);
+                    }
                     break;
                 default:
                     throw new NotSupportedException(string.Format("The unary operator '{0}' is not supported", u.NodeType));

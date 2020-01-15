@@ -181,6 +181,25 @@ namespace ElasticsearchQuery.Tests
         }
 
         [Fact]
+        public void MultiMatchDeny()
+        {
+            var product = new ProductTest(Guid.NewGuid(), "Product of category", 99);
+
+            var productList = GenerateData(1000, product);
+
+            AddData(productList.ToArray());
+            var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+
+            query = query.Where(w => !w.MultiMatch("category", t => t.NameAsText, t => t.Name));
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.DoesNotContain(result, f => f.ProductId == product.ProductId);
+        }
+
+        [Fact]
         public void Exists()
         {
             var product = new ProductTest(Guid.NewGuid(), null, 99);
