@@ -222,20 +222,46 @@ namespace ElasticsearchQuery
                     }
                     break;
                 case ExpressionType.NotEqual:
-                    queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(t => t.Field(field).Value(value))));
+
+                    Func<TermQueryDescriptor<object>, ITermQuery> _notEqualTermSelector = t => t.Field(field).Value(value);
+
+                    if (denyCondition)                    
+                        queryContainer = Query<object>.Term(_notEqualTermSelector);                    
+                    else                    
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_notEqualTermSelector)));
                     break;
                 case ExpressionType.LessThan:
                     //TODO cast only when is necessary to double / decimal
-                    queryContainer = Query<object>.Range(r => r.Field(field).LessThan((double?)((decimal?)value)));
+                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _lessThanSelector = r => r.Field(field).LessThan((double?)((decimal?)value));
+                    if (denyCondition)                    
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_lessThanSelector)));                    
+                    else                    
+                        queryContainer = Query<object>.Range(_lessThanSelector);
                     break;
                 case ExpressionType.LessThanOrEqual:
-                    queryContainer = Query<object>.Range(r => r.Field(field).LessThanOrEquals((double?)((decimal?)value)));
+
+                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _lessThanOrEqualSelector = r => r.Field(field).LessThanOrEquals((double?)((decimal?)value));
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_lessThanOrEqualSelector)));
+                    else
+                        queryContainer = Query<object>.Range(_lessThanOrEqualSelector);
                     break;
                 case ExpressionType.GreaterThan:
-                    queryContainer = Query<object>.Range(r => r.Field(field).GreaterThan((double?)((decimal?)value)));
+
+                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanSelector = r => r.Field(field).GreaterThan((double?)((decimal?)value));
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanSelector)));
+                    else
+                        queryContainer = Query<object>.Range(_greaterThanSelector);
+
                     break;
                 case ExpressionType.GreaterThanOrEqual:
-                    queryContainer = Query<object>.Range(r => r.Field(field).GreaterThanOrEquals((double?)((decimal?)value)));
+
+                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanOrEqualSelector = r => r.Field(field).GreaterThanOrEquals((double?)((decimal?)value));
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanOrEqualSelector)));
+                    else
+                        queryContainer = Query<object>.Range(_greaterThanOrEqualSelector);
                     break;
                 default:
                     break;

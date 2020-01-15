@@ -528,6 +528,26 @@ namespace ElasticsearchQuery.Tests
             Assert.Contains(result, f => f.ProductId == pId);
         }
 
+        [Fact]
+        public void NotEqualsDeny()
+        {
+            var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
+            var client = ObterCliente();
+
+            var pId = produto.ProductId;
+            var pNome = produto.Name;
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            query = query.Where(w => !(w.ProductId != Guid.Empty));
+
+            var result = query.ToList();
+            Assert.Empty(result);
+            Assert.DoesNotContain(result, f => f.ProductId == pId);
+        }
+
 
         [Fact]
         public void NotEqualsInvalid()
@@ -659,6 +679,25 @@ namespace ElasticsearchQuery.Tests
             var result = query.ToList();
             Assert.NotEmpty(result);
             Assert.Contains(result, f => f.ProductId == pId);
+        }
+
+        [Fact]
+        public void LessThanDeny()
+        {
+            var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            AddData(produto);
+
+            var client = ObterCliente();
+
+            var pId = produto.ProductId;
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            query = query.Where(w => !(w.Price < 50));
+
+            var result = query.ToList();
+            Assert.Empty(result);
+            Assert.DoesNotContain(result, f => f.ProductId == pId);
         }
 
 
