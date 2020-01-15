@@ -203,11 +203,23 @@ namespace ElasticsearchQuery
                     if (typeof(System.Collections.IEnumerable).IsAssignableFrom(value.GetType()))
                     {
                         var _tempCollection = value as System.Collections.IEnumerable;
-                        //var _temp = _tempCollection.ToArray();
-                        queryContainer = Query<object>.Terms(t => t.Field(field).Terms(_tempCollection));
+
+                        Func<TermsQueryDescriptor<object>, ITermsQuery> _termsSelector = t => t.Field(field).Terms(_tempCollection);
+
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Terms(_termsSelector)));
+                        else
+                            queryContainer = Query<object>.Terms(_termsSelector);
                     }
                     else
-                        queryContainer = Query<object>.Term(t => t.Field(field).Value(value));
+                    {
+                        Func<TermQueryDescriptor<object>, ITermQuery> _termSelector = t => t.Field(field).Value(value);
+
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_termSelector)));
+                        else
+                            queryContainer = Query<object>.Term(_termSelector);
+                    }
                     break;
                 case ExpressionType.NotEqual:
                     queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(t => t.Field(field).Value(value))));
