@@ -134,7 +134,13 @@ namespace ElasticsearchQuery
                     queryContainer = Query<object>.Prefix(f => f.Field(field).Value(value.ToString()));
                     break;
                 case "EndsWith":
-                    queryContainer = Query<object>.Regexp(f => f.Field(field).Value(".*" + value.ToString()));
+
+                    Func<RegexpQueryDescriptor<object>, IRegexpQuery> _endsWithSelector = f => f.Field(field).Value(".*" + value.ToString());
+
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Regexp(_endsWithSelector)));
+                    else
+                        queryContainer = Query<object>.Regexp(_endsWithSelector);
                     break;
                 case "MatchPhrase":
 

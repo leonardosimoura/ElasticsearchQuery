@@ -321,6 +321,28 @@ namespace ElasticsearchQuery.Tests
         }
 
         [Fact]
+        public void EndsWithDeny()
+        {
+            var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+
+            var productList = GenerateData(1000, produto);
+
+            AddData(productList.ToArray());
+
+            var client = ObterCliente();
+
+            var pId = produto.ProductId;
+            var pNome = produto.Name;
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            query = query.Where(w => !w.Name.EndsWith("Test"));
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.DoesNotContain(result, f => f.ProductId == pId);
+        }
+
+        [Fact]
         public void EndsWithValid()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
