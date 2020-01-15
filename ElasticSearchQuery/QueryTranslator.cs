@@ -131,7 +131,13 @@ namespace ElasticsearchQuery
                     queryContainer = Query<object>.Wildcard(f => f.Value("*" + value.ToString()).Field(field));
                     break;
                 case "StartsWith":
-                    queryContainer = Query<object>.Prefix(f => f.Field(field).Value(value.ToString()));
+
+                    Func<PrefixQueryDescriptor<object>, IPrefixQuery> _startsWithSelector = f => f.Field(field).Value(value.ToString());
+
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Prefix(_startsWithSelector)));
+                    else
+                        queryContainer = Query<object>.Prefix(_startsWithSelector);
                     break;
                 case "EndsWith":
 
