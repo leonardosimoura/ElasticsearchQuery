@@ -128,7 +128,13 @@ namespace ElasticsearchQuery
             switch (operacao)
             {
                 case "Contains":
-                    queryContainer = Query<object>.Wildcard(f => f.Value("*" + value.ToString()).Field(field));
+
+                    Func<WildcardQueryDescriptor<object>, IWildcardQuery> _containsSelector = f => f.Value("*" + value.ToString()).Field(field);
+
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Wildcard(_containsSelector)));
+                    else
+                        queryContainer = Query<object>.Wildcard(_containsSelector);
                     break;
                 case "StartsWith":
 
