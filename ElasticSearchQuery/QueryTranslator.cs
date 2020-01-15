@@ -137,17 +137,23 @@ namespace ElasticsearchQuery
                     queryContainer = Query<object>.Regexp(f => f.Field(field).Value(".*" + value.ToString()));
                     break;
                 case "MatchPhrase":
-                    queryContainer = Query<object>.MatchPhrase(f => f.Field(field).Query(value.ToString()));
+
+                    Func<MatchPhraseQueryDescriptor<object>, IMatchPhraseQuery> _matchPhraseSelector = f => f.Field(field).Query(value.ToString());
+
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MatchPhrase(_matchPhraseSelector)));
+                    else
+                        queryContainer = Query<object>.MatchPhrase(_matchPhraseSelector);
                     break;
                 case "MultiMatch":
                     var _fields = field.Split(';');
 
-                    Func<MultiMatchQueryDescriptor<object>, IMultiMatchQuery> selector = f => f.Fields(_fields).Query(value.ToString());
+                    Func<MultiMatchQueryDescriptor<object>, IMultiMatchQuery> _multiMachSelector = f => f.Fields(_fields).Query(value.ToString());
 
                     if (denyCondition)                    
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MultiMatch(selector)));                    
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MultiMatch(_multiMachSelector)));                    
                     else                    
-                        queryContainer = Query<object>.MultiMatch(selector);                    
+                        queryContainer = Query<object>.MultiMatch(_multiMachSelector);                    
 
                     break;
                 default:
