@@ -11,13 +11,13 @@
     <Title>ElasticsearchQuery</Title>
     <Description>Simple IQueryable implementation for Elasticsearch</Description>
     <Authors>Leonardo Silvio de Moura</Authors>
-    <Version>0.1.8</Version>
+    <Version>0.1.9</Version>
     <UpdateVersionProperties>true</UpdateVersionProperties>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageTags>Elasticsearch Elastic Nest ElasticsearchQuery Query</PackageTags>
-    <AssemblyVersion>0.1.8.0</AssemblyVersion>
-    <FileVersion>0.1.8.0</FileVersion>
+    <AssemblyVersion>0.1.9.0</AssemblyVersion>
+    <FileVersion>0.1.9.0</FileVersion>
   
 </PropertyGroup>
   <ItemGroup>
