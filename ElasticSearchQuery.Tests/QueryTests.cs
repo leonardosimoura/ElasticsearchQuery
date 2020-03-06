@@ -13,7 +13,8 @@ namespace ElasticsearchQuery.Tests
     {
         private IElasticClient ObterCliente()
         {
-            var node = new Uri("http://192.168.99.104:9200/");
+            // docker run --name elasticsearch --restart=always -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" -d docker.elastic.co/elasticsearch/elasticsearch-oss:7.6.1
+            var node = new Uri("http://localhost:9200/");
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
