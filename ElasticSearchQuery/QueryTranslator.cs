@@ -168,16 +168,15 @@ namespace ElasticsearchQuery
 
                     Func<MultiMatchQueryDescriptor<object>, IMultiMatchQuery> _multiMachSelector = f => f.Fields(_fields).Query(value.ToString());
 
-                    if (denyCondition)                    
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MultiMatch(_multiMachSelector)));                    
-                    else                    
-                        queryContainer = Query<object>.MultiMatch(_multiMachSelector);                    
+                    if (denyCondition)
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MultiMatch(_multiMachSelector)));
+                    else
+                        queryContainer = Query<object>.MultiMatch(_multiMachSelector);
 
                     break;
                 default:
                     break;
             }
-
             if (_searchRequest.Query == null)
             {
                 _searchRequest.Query = queryContainer;
@@ -195,12 +194,12 @@ namespace ElasticsearchQuery
             }
         }
 
-        private void SetQuery()
+        private QueryContainer SetQuery()
         {
             switch (binaryExpType)
             {
                 case ExpressionType.Equal:
-                    if (typeof(System.Collections.IEnumerable).IsAssignableFrom(value.GetType()))
+                    if (typeof(System.Collections.IEnumerable).IsAssignableFrom(value.GetType()) && value.GetType().Name != "String")
                     {
                         var _tempCollection = value as System.Collections.IEnumerable;
 
@@ -225,63 +224,113 @@ namespace ElasticsearchQuery
 
                     Func<TermQueryDescriptor<object>, ITermQuery> _notEqualTermSelector = t => t.Field(field).Value(value);
 
-                    if (denyCondition)                    
-                        queryContainer = Query<object>.Term(_notEqualTermSelector);                    
-                    else                    
+                    if (denyCondition)
+                        queryContainer = Query<object>.Term(_notEqualTermSelector);
+                    else
                         queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_notEqualTermSelector)));
                     break;
                 case ExpressionType.LessThan:
                     //TODO cast only when is necessary to double / decimal
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _lessThanSelector = r => r.Field(field).LessThan((double?)((decimal?)value));
-                    if (denyCondition)                    
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_lessThanSelector)));                    
-                    else                    
-                        queryContainer = Query<object>.Range(_lessThanSelector);
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> _lessThan = r => r.Field(field).LessThan((DateTime?)(Convert.ToDateTime(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.DateRange(_lessThan)));
+                        else
+                            queryContainer = Query<object>.DateRange(_lessThan);
+                    }
+                    else
+                    {
+                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _lessThan = r => r.Field(field).LessThan((double?)(Convert.ToDecimal(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_lessThan)));
+                        else
+                            queryContainer = Query<object>.Range(_lessThan);
+                    }
+
                     break;
                 case ExpressionType.LessThanOrEqual:
 
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _lessThanOrEqualSelector = r => r.Field(field).LessThanOrEquals((double?)((decimal?)value));
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_lessThanOrEqualSelector)));
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> _lessThanOrEqual = r => r.Field(field).LessThanOrEquals((DateTime?)(Convert.ToDateTime(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.DateRange(_lessThanOrEqual)));
+                        else
+                            queryContainer = Query<object>.DateRange(_lessThanOrEqual);
+                    }
                     else
-                        queryContainer = Query<object>.Range(_lessThanOrEqualSelector);
+                    {
+                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanSelector = r => r.Field(field).LessThanOrEquals((double?)(Convert.ToDecimal(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanSelector)));
+                        else
+                            queryContainer = Query<object>.Range(_greaterThanSelector);
+                    }
+
                     break;
                 case ExpressionType.GreaterThan:
-
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanSelector = r => r.Field(field).GreaterThan((double?)((decimal?)value));
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanSelector)));
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> _greaterThanSelector = r => r.Field(field).GreaterThan((DateTime?)(Convert.ToDateTime(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.DateRange(_greaterThanSelector)));
+                        else
+                            queryContainer = Query<object>.DateRange(_greaterThanSelector);
+                    }
                     else
-                        queryContainer = Query<object>.Range(_greaterThanSelector);
+                    {
+                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanSelector = r => r.Field(field).GreaterThan((double?)(Convert.ToDecimal(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanSelector)));
+                        else
+                            queryContainer = Query<object>.Range(_greaterThanSelector);
+                    }
 
                     break;
                 case ExpressionType.GreaterThanOrEqual:
-
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanOrEqualSelector = r => r.Field(field).GreaterThanOrEquals((double?)((decimal?)value));
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanOrEqualSelector)));
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> _greaterThanOrEqualSelector = r => r.Field(field).GreaterThanOrEquals((DateTime?)(Convert.ToDateTime(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.DateRange(_greaterThanOrEqualSelector)));
+                        else
+                            queryContainer = Query<object>.DateRange(_greaterThanOrEqualSelector);
+                    }
                     else
-                        queryContainer = Query<object>.Range(_greaterThanOrEqualSelector);
+                    {
+                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanOrEqualSelector = r => r.Field(field).GreaterThanOrEquals((double?)(Convert.ToDecimal(value)));
+                        if (denyCondition)
+                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanOrEqualSelector)));
+                        else
+                            queryContainer = Query<object>.Range(_greaterThanOrEqualSelector);
+                    }
+
                     break;
+
                 default:
                     break;
             }
-
-            if (_searchRequest.Query == null)
+            return queryContainer;
+            /*
+            if (_searchRequest.Query == null && queryContainer != null)
             {
                 _searchRequest.Query = queryContainer;
+                queryContainer = null;
             }
-            else
+            else if (queryContainer != null)
             {
                 if (AndCondition)
                 {
-                    _searchRequest.Query = _searchRequest.Query && _searchRequest.Query;
+                    _searchRequest.Query = _searchRequest.Query & queryContainer;
+                    queryContainer = null;
                 }
                 else
                 {
-                    _searchRequest.Query = _searchRequest.Query || _searchRequest.Query;
+                    _searchRequest.Query = _searchRequest.Query | queryContainer;
+                    queryContainer = null;
                 }
-            }
+            }*/
         }
 
         private void SetOrderBy()
@@ -311,8 +360,12 @@ namespace ElasticsearchQuery
 
             _searchRequest = new SearchRequest(_index);
 
-            if (expression is ConstantExpression == false)
-                this.Visit(expression);
+           // foreach (var arg in ((MethodCallExpression)expression).Arguments.ToList())
+            {
+                if (expression is ConstantExpression == false)
+                    this.Visit(expression);
+
+            }
 
             _searchRequest.Human = true;
             if (_searchRequest.Query == null)
@@ -338,7 +391,7 @@ namespace ElasticsearchQuery
                 case "Where":
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
 
-                    this.Visit(lambda.Body);
+                    _searchRequest.Query = CreateNestQuery((BinaryExpression)(lambda.Body));
 
                     return m;
                 case "Count":
@@ -376,7 +429,15 @@ namespace ElasticsearchQuery
                         var memberExp = aggLambda.Body as MemberExpression;
                         aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
                     }
+                    else if(aggLambda.Body.NodeType == ExpressionType.Convert)
+                    {
+                        var memberExp = ((UnaryExpression)(aggLambda.Body)).Operand as MemberExpression;
+                        aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
+                    }
                     SetAggregation();
+
+                    if (m.Arguments.First() is ConstantExpression == false)
+                        Visit(m.Arguments.First());
                     return m;
                     break;
                 case "Contains":
@@ -614,18 +675,25 @@ namespace ElasticsearchQuery
             return u;
         }
 
-        protected override Expression VisitBinary(BinaryExpression b)
+        protected QueryContainer CreateNestQuery(BinaryExpression b)
         {
-            this.Visit(b.Left);
+            binaryExpType = b.NodeType;
+            if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
+                return this.CreateNestQuery((BinaryExpression)(b.Left)) & this.CreateNestQuery((BinaryExpression)(b.Right));
+            else if (binaryExpType == ExpressionType.OrElse || binaryExpType == ExpressionType.Or)
+                return this.CreateNestQuery((BinaryExpression)(b.Left)) | this.CreateNestQuery((BinaryExpression)(b.Right));
 
+            this.Visit(b.Left);
             switch (b.NodeType)
             {
-                case ExpressionType.And:
+                /*case ExpressionType.And:
+                case ExpressionType.AndAlso:
                     AndCondition = true;
                     break;
                 case ExpressionType.Or:
+                case ExpressionType.OrElse:
                     AndCondition = false;
-                    break;
+                    break;*/
                 case ExpressionType.Equal:
                 case ExpressionType.NotEqual:
                 case ExpressionType.LessThan:
@@ -638,10 +706,8 @@ namespace ElasticsearchQuery
                     throw new NotSupportedException(string.Format("The binary operator '{0}' is not supported", b.NodeType));
             }
             this.Visit(b.Right);
+            return SetQuery();
 
-            SetQuery();
-
-            return b;
         }
 
         protected override Expression VisitConstant(ConstantExpression c)
