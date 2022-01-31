@@ -416,6 +416,8 @@ namespace ElasticsearchQuery
                         }
                         SetAggregation();
                     }
+                    if (m.Arguments.First() is ConstantExpression == false)
+                        Visit(m.Arguments.First());
                     return m;
 
                     break;
