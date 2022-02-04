@@ -388,12 +388,16 @@ namespace ElasticsearchQuery
 
             switch (m.Method.Name)
             {
+                case "Any":
                 case "Where":
+                    if (m.Arguments[1].ToString().Contains("Any"))
+                        this.Visit(m.Arguments[1]);
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
 
-                    _searchRequest.Query = CreateNestQuery((BinaryExpression)(lambda.Body));
+                    _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(lambda.Body));
 
                     return m;
+                
                 case "Count":
 
                     if (m.Arguments.Count == 1)
@@ -671,6 +675,11 @@ namespace ElasticsearchQuery
                         this.Visit(u.Operand);
                     }
                     break;
+                case ExpressionType.Quote:
+                    {
+                        this.Visit(u.Operand);
+                    }
+                    break;
                 default:
                     throw new NotSupportedException(string.Format("The unary operator '{0}' is not supported", u.NodeType));
             }
@@ -679,6 +688,11 @@ namespace ElasticsearchQuery
 
         protected QueryContainer CreateNestQuery(BinaryExpression b)
         {
+            /*if (b.Left.Type != Expression.binaryExpType )
+            {
+
+            }*/
+
             binaryExpType = b.NodeType;
             if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
                 return this.CreateNestQuery((BinaryExpression)(b.Left)) & this.CreateNestQuery((BinaryExpression)(b.Right));
@@ -688,14 +702,6 @@ namespace ElasticsearchQuery
             this.Visit(b.Left);
             switch (b.NodeType)
             {
-                /*case ExpressionType.And:
-                case ExpressionType.AndAlso:
-                    AndCondition = true;
-                    break;
-                case ExpressionType.Or:
-                case ExpressionType.OrElse:
-                    AndCondition = false;
-                    break;*/
                 case ExpressionType.Equal:
                 case ExpressionType.NotEqual:
                 case ExpressionType.LessThan:
@@ -735,9 +741,20 @@ namespace ElasticsearchQuery
 
         protected override Expression VisitMember(MemberExpression m)
         {
+            //var displayName = m.Method.CustomAttributes.GetEnumerator().Current.ConstructorArguments[0].Value;
+            string displayName = null;
+            if (m.Member.CustomAttributes.ToList().FirstOrDefault() != null)
+                displayName = m.Member.CustomAttributes.ToList().FirstOrDefault().ConstructorArguments[0].Value.ToString();
+            
             if (m.Expression != null && m.Expression.NodeType == ExpressionType.Parameter)
             {
-                field = m.Member.Name.ToCamelCase();
+                if (displayName != null)
+                {
+                    field = displayName;
+         
+                }
+                else
+                    field = m.Member.Name.ToCamelCase();
             }
             else if (m.Expression != null && m.Expression.NodeType == ExpressionType.Constant)
             {

@@ -11,6 +11,7 @@ namespace ElasticsearchQuery.Helpers
         {
             while (e.NodeType == ExpressionType.Quote)
             {
+
                 e = ((UnaryExpression)e).Operand;
             }
             return e;
