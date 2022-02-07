@@ -214,10 +214,13 @@ namespace ElasticsearchQuery
                     {
                         Func<TermQueryDescriptor<object>, ITermQuery> _termSelector = t => t.Field(field).Value(value);
 
+                        
                         if (denyCondition)
                             queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_termSelector)));
                         else
                             queryContainer = Query<object>.Term(_termSelector);
+
+
                     }
                     break;
                 case ExpressionType.NotEqual:
@@ -390,11 +393,30 @@ namespace ElasticsearchQuery
             {
                 case "Any":
                 case "Where":
-                    if (m.Arguments[1].ToString().Contains("Any"))
-                        this.Visit(m.Arguments[1]);
+                    foreach (var argument in m.Arguments)
+                    {
+                        if (argument is MethodCallExpression)
+                            this.Visit(argument);
+                    }
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
-
-                    _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(lambda.Body));
+                    var expression = lambda.Body;
+                    var flag = true;
+                    if (((BinaryExpression)lambda.Body).Left is MethodCallExpression)
+                    {
+                        this.Visit(m.Arguments[1]);
+                        expression = ((BinaryExpression)lambda.Body).Right;
+                        _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(expression));
+                        flag = false;
+                    }
+                    if (((BinaryExpression)lambda.Body).Right is MethodCallExpression)
+                    {
+                        this.Visit(m.Arguments[1]);
+                        expression = ((BinaryExpression)lambda.Body).Left;
+                        _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(expression));
+                        flag = false;
+                    }
+                    if(flag)
+                        _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(expression));
 
                     return m;
                 
@@ -688,12 +710,12 @@ namespace ElasticsearchQuery
 
         protected QueryContainer CreateNestQuery(BinaryExpression b)
         {
-            /*if (b.Left.Type != Expression.binaryExpType )
-            {
-
-            }*/
 
             binaryExpType = b.NodeType;
+            /*if (b.Left is MethodCallExpression)
+                this.Visit(b.Left);
+            if (b.Right is MethodCallExpression)
+                this.Visit(b.Right);*/
             if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
                 return this.CreateNestQuery((BinaryExpression)(b.Left)) & this.CreateNestQuery((BinaryExpression)(b.Right));
             else if (binaryExpType == ExpressionType.OrElse || binaryExpType == ExpressionType.Or)
