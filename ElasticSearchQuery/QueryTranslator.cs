@@ -24,6 +24,7 @@ namespace ElasticsearchQuery
         private bool AndCondition = true;
         Type elementType;
         bool denyCondition = false;
+        bool isNestedCondition = false;
 
 
         private AggregationBase _aggregationBase;
@@ -213,8 +214,14 @@ namespace ElasticsearchQuery
                     else
                     {
                         Func<TermQueryDescriptor<object>, ITermQuery> _termSelector = t => t.Field(field).Value(value);
-
-                        
+                        //Func<BoolQueryDescriptor<object>, IBoolQuery> _boolSelector = t => t.Must(x)
+                        if (isNestedCondition)
+                        {
+                            var path = field.Substring(0,field.LastIndexOf('.'));
+                            Func<QueryContainerDescriptor<object>, QueryContainer> _nestedSelector = t => t.Term(_termSelector);
+                            queryContainer = Query<object>.Nested(n => n.Path(path).Query(_nestedSelector));
+                            break;
+                        }
                         if (denyCondition)
                             queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_termSelector)));
                         else
@@ -392,6 +399,7 @@ namespace ElasticsearchQuery
             switch (m.Method.Name)
             {
                 case "Any":
+                case "All":
                 case "Where":
                     foreach (var argument in m.Arguments)
                     {
@@ -400,24 +408,31 @@ namespace ElasticsearchQuery
                     }
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
                     var expression = lambda.Body;
-                    var flag = true;
-                    if (((BinaryExpression)lambda.Body).Left is MethodCallExpression)
+                    var flag = false;
+                    if (lambda.Body is MethodCallExpression)
                     {
-                        this.Visit(m.Arguments[1]);
-                        expression = ((BinaryExpression)lambda.Body).Right;
-                        _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(expression));
-                        flag = false;
+                        isNestedCondition = true;
+                        this.Visit(lambda.Body);
+                        isNestedCondition = false;
                     }
-                    if (((BinaryExpression)lambda.Body).Right is MethodCallExpression)
+                    else if (((BinaryExpression)lambda.Body).Left is MethodCallExpression)
                     {
+                        isNestedCondition = true;
                         this.Visit(m.Arguments[1]);
-                        expression = ((BinaryExpression)lambda.Body).Left;
-                        _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(expression));
-                        flag = false;
+                        isNestedCondition = false;
+                        expression = ((BinaryExpression)expression).Right;
                     }
-                    if(flag)
-                        _searchRequest.Query = _searchRequest.Query & CreateNestQuery((BinaryExpression)(expression));
-
+                    else if (((BinaryExpression)lambda.Body).Right is MethodCallExpression)
+                    {
+                        isNestedCondition = true;
+                        this.Visit(m.Arguments[1]);
+                        if (flag)
+                            return m;
+                        expression = ((BinaryExpression)expression).Left;
+                        isNestedCondition = false;
+                    }
+                    else 
+                        _searchRequest.Query &= CreateNestQuery((BinaryExpression)(expression));
                     return m;
                 
                 case "Count":
@@ -710,18 +725,27 @@ namespace ElasticsearchQuery
 
         protected QueryContainer CreateNestQuery(BinaryExpression b)
         {
-
             binaryExpType = b.NodeType;
-            /*if (b.Left is MethodCallExpression)
-                this.Visit(b.Left);
-            if (b.Right is MethodCallExpression)
-                this.Visit(b.Right);*/
-            if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
-                return this.CreateNestQuery((BinaryExpression)(b.Left)) & this.CreateNestQuery((BinaryExpression)(b.Right));
-            else if (binaryExpType == ExpressionType.OrElse || binaryExpType == ExpressionType.Or)
-                return this.CreateNestQuery((BinaryExpression)(b.Left)) | this.CreateNestQuery((BinaryExpression)(b.Right));
 
+            if (isNestedCondition)
+            {
+                if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
+                {
+                    var left = ((IQueryContainer)this.CreateNestQuery((BinaryExpression)(b.Left))).Nested;
+                    var right = ((IQueryContainer)this.CreateNestQuery((BinaryExpression)(b.Right))).Nested;
+                    var nestedQuery = Query<object>.Nested(n => n.Path(left.Path).Query( x => left.Query & right.Query));
+                    return nestedQuery;
+                }
+            }
+            else
+            {
+                if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
+                    return this.CreateNestQuery((BinaryExpression)(b.Left)) & this.CreateNestQuery((BinaryExpression)(b.Right));
+                else if (binaryExpType == ExpressionType.OrElse || binaryExpType == ExpressionType.Or)
+                    return this.CreateNestQuery((BinaryExpression)(b.Left)) | this.CreateNestQuery((BinaryExpression)(b.Right));
+            }
             this.Visit(b.Left);
+                
             switch (b.NodeType)
             {
                 case ExpressionType.Equal:
