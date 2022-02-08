@@ -215,13 +215,13 @@ namespace ElasticsearchQuery
                     {
                         Func<TermQueryDescriptor<object>, ITermQuery> _termSelector = t => t.Field(field).Value(value);
                         //Func<BoolQueryDescriptor<object>, IBoolQuery> _boolSelector = t => t.Must(x)
-                        if (isNestedCondition)
+                       /* if (isNestedCondition)
                         {
                             var path = field.Substring(0,field.LastIndexOf('.'));
                             Func<QueryContainerDescriptor<object>, QueryContainer> _nestedSelector = t => t.Term(_termSelector);
                             queryContainer = Query<object>.Nested(n => n.Path(path).Query(_nestedSelector));
                             break;
-                        }
+                        }*/
                         if (denyCondition)
                             queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_termSelector)));
                         else
@@ -731,9 +731,18 @@ namespace ElasticsearchQuery
             {
                 if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
                 {
-                    var left = ((IQueryContainer)this.CreateNestQuery((BinaryExpression)(b.Left))).Nested;
-                    var right = ((IQueryContainer)this.CreateNestQuery((BinaryExpression)(b.Right))).Nested;
-                    var nestedQuery = Query<object>.Nested(n => n.Path(left.Path).Query( x => left.Query & right.Query));
+                    var left = (this.CreateNestQuery((BinaryExpression)(b.Left)));
+                    var right = (this.CreateNestQuery((BinaryExpression)(b.Right)));
+                    var path = field.Substring(0, field.LastIndexOf('.'));
+                    var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left & right));
+                    return nestedQuery;
+                }
+                else if (binaryExpType == ExpressionType.Or || binaryExpType == ExpressionType.OrElse)
+                {
+                    var left = (this.CreateNestQuery((BinaryExpression)(b.Left)));
+                    var right = (this.CreateNestQuery((BinaryExpression)(b.Right)));
+                    var path = field.Substring(0, field.LastIndexOf('.'));
+                    var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left | right));
                     return nestedQuery;
                 }
             }
@@ -760,6 +769,13 @@ namespace ElasticsearchQuery
                     throw new NotSupportedException(string.Format("The binary operator '{0}' is not supported", b.NodeType));
             }
             this.Visit(b.Right);
+            if (isNestedCondition)
+            {
+                var query = SetQuery();
+                var path = field.Substring(0, field.LastIndexOf('.'));
+                var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => query));
+                return nestedQuery;
+            }
             return SetQuery();
 
         }
