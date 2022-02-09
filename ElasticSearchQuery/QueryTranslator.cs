@@ -6,7 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("ElasticSearchQueryLib.Tests")]
 namespace ElasticsearchQuery
 {
     internal class QueryTranslator : ExpressionVisitor
@@ -26,6 +28,7 @@ namespace ElasticsearchQuery
         bool denyCondition = false;
         bool isNestedCondition = false;
 
+        internal object Value => value;
 
         private AggregationBase _aggregationBase;
 
