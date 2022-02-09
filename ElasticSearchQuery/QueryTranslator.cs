@@ -402,7 +402,6 @@ namespace ElasticsearchQuery
             switch (m.Method.Name)
             {
                 case "Any":
-                case "All":
                 case "Where":
                     foreach (var argument in m.Arguments)
                     {
