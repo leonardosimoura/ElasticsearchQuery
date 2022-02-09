@@ -43,7 +43,9 @@ namespace ElasticSearchQuery.Tests
             var actual = queryTranslator.Translate(query.Expression, obj.GetType());
             
             // Would be better if we create the query using nest and then compare them
+            // i.e. compare the termQuery we got with a respective nest query that we can make.
             var termQuery = ((IQueryContainer)actual.SearchRequest.Query).Term;
+
             //var termQuery1 = ((IQueryContainer)((IQueryContainer)actual.SearchRequest.Query).Bool.Must.First()).Term;
 
             Assert.AreEqual(termQuery.Field.ToString(), "id");
