@@ -414,24 +414,29 @@ namespace ElasticsearchQuery
                         isNestedCondition = true;
                         this.Visit(lambda.Body);
                         isNestedCondition = false;
+                        return m;
                     }
-                    else if (((BinaryExpression)lambda.Body).Left is MethodCallExpression)
+                    else
                     {
-                        isNestedCondition = true;
-                        this.Visit(m.Arguments[1]);
-                        isNestedCondition = false;
-                        expression = ((BinaryExpression)expression).Right;
+                        if (((BinaryExpression)lambda.Body).Left is MethodCallExpression)
+                        {
+                            isNestedCondition = true;
+                            this.Visit(((BinaryExpression)lambda.Body).Left);
+                            isNestedCondition = false;
+                            expression = ((BinaryExpression)expression).Right;
+                            flag = true;
+                        }
+                        if (((BinaryExpression)lambda.Body).Right is MethodCallExpression)
+                        {
+                            isNestedCondition = true;
+                            this.Visit(((BinaryExpression)lambda.Body).Right);
+                            isNestedCondition = false;
+                            if (flag)
+                                return m;
+                            expression = ((BinaryExpression)expression).Left;
+                        }
                     }
-                    else if (((BinaryExpression)lambda.Body).Right is MethodCallExpression)
-                    {
-                        isNestedCondition = true;
-                        this.Visit(m.Arguments[1]);
-                        if (flag)
-                            return m;
-                        expression = ((BinaryExpression)expression).Left;
-                        isNestedCondition = false;
-                    }
-                    else 
+                    
                         _searchRequest.Query &= CreateNestQuery((BinaryExpression)(expression));
                     return m;
                 
@@ -731,20 +736,21 @@ namespace ElasticsearchQuery
             {
                 if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
                 {
-                    var left = (this.CreateNestQuery((BinaryExpression)(b.Left)));
-                    var right = (this.CreateNestQuery((BinaryExpression)(b.Right)));
+                    var left = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Left)))).Nested.Query;
+                    var right = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Right)))).Nested.Query;
                     var path = field.Substring(0, field.LastIndexOf('.'));
                     var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left & right));
                     return nestedQuery;
                 }
                 else if (binaryExpType == ExpressionType.Or || binaryExpType == ExpressionType.OrElse)
                 {
-                    var left = (this.CreateNestQuery((BinaryExpression)(b.Left)));
-                    var right = (this.CreateNestQuery((BinaryExpression)(b.Right)));
+                    var left = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Left)))).Nested.Query;
+                    var right = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Right)))).Nested.Query;
                     var path = field.Substring(0, field.LastIndexOf('.'));
                     var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left | right));
                     return nestedQuery;
                 }
+
             }
             else
             {
