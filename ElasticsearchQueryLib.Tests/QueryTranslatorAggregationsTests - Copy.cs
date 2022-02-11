@@ -2,7 +2,7 @@ using NUnit.Framework;
 
 namespace ElasticsearchQueryLib.Tests
 {
-    public class QueryTranslatorAggregatuionsTests
+    public class QueryTranslatorAggregationsTests
     {
         [SetUp]
         public void Setup()

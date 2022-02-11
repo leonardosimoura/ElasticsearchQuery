@@ -27,7 +27,7 @@ namespace ElasticsearchQuery
         Type elementType;
         bool denyCondition = false;
         bool isNestedCondition = false;
-
+        ExpressionType expType;
         internal object Value => value;
 
         private AggregationBase _aggregationBase;
@@ -133,12 +133,12 @@ namespace ElasticsearchQuery
             {
                 case "Contains":
 
-                    Func<WildcardQueryDescriptor<object>, IWildcardQuery> _containsSelector = f => f.Value("*" + value.ToString()).Field(field);
+                    Func<MatchQueryDescriptor<object>, IMatchQuery> _matchSelector = f => f.Field(field).Query(value.ToString());
 
                     if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Wildcard(_containsSelector)));
+                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Match(_matchSelector)));
                     else
-                        queryContainer = Query<object>.Wildcard(_containsSelector);
+                        queryContainer = Query<object>.Match(_matchSelector);
                     break;
                 case "StartsWith":
 
@@ -189,11 +189,11 @@ namespace ElasticsearchQuery
             {
                 if (AndCondition)
                 {
-                    _searchRequest.Query = _searchRequest.Query && _searchRequest.Query;
+                    _searchRequest.Query = _searchRequest.Query && queryContainer;
                 }
                 else
                 {
-                    _searchRequest.Query = _searchRequest.Query || _searchRequest.Query;
+                    _searchRequest.Query = _searchRequest.Query || queryContainer;
                 }
             }
         }
@@ -218,13 +218,13 @@ namespace ElasticsearchQuery
                     {
                         Func<TermQueryDescriptor<object>, ITermQuery> _termSelector = t => t.Field(field).Value(value);
                         //Func<BoolQueryDescriptor<object>, IBoolQuery> _boolSelector = t => t.Must(x)
-                       /* if (isNestedCondition)
-                        {
-                            var path = field.Substring(0,field.LastIndexOf('.'));
-                            Func<QueryContainerDescriptor<object>, QueryContainer> _nestedSelector = t => t.Term(_termSelector);
-                            queryContainer = Query<object>.Nested(n => n.Path(path).Query(_nestedSelector));
-                            break;
-                        }*/
+                        /* if (isNestedCondition)
+                         {
+                             var path = field.Substring(0,field.LastIndexOf('.'));
+                             Func<QueryContainerDescriptor<object>, QueryContainer> _nestedSelector = t => t.Term(_termSelector);
+                             queryContainer = Query<object>.Nested(n => n.Path(path).Query(_nestedSelector));
+                             break;
+                         }*/
                         if (denyCondition)
                             queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_termSelector)));
                         else
@@ -373,7 +373,7 @@ namespace ElasticsearchQuery
 
             _searchRequest = new SearchRequest(_index);
 
-           // foreach (var arg in ((MethodCallExpression)expression).Arguments.ToList())
+            // foreach (var arg in ((MethodCallExpression)expression).Arguments.ToList())
             {
                 if (expression is ConstantExpression == false)
                     this.Visit(expression);
@@ -403,6 +403,7 @@ namespace ElasticsearchQuery
             {
                 case "Any":
                 case "Where":
+
                     foreach (var argument in m.Arguments)
                     {
                         if (argument is MethodCallExpression)
@@ -423,6 +424,7 @@ namespace ElasticsearchQuery
                         if (((BinaryExpression)lambda.Body).Left is MethodCallExpression)
                         {
                             isNestedCondition = true;
+                            expType = lambda.Body.NodeType;
                             this.Visit(((BinaryExpression)lambda.Body).Left);
                             isNestedCondition = false;
                             expression = ((BinaryExpression)expression).Right;
@@ -431,6 +433,7 @@ namespace ElasticsearchQuery
                         if (((BinaryExpression)lambda.Body).Right is MethodCallExpression)
                         {
                             isNestedCondition = true;
+                            expType = lambda.Body.NodeType;
                             this.Visit(((BinaryExpression)lambda.Body).Right);
                             isNestedCondition = false;
                             if (flag)
@@ -438,10 +441,16 @@ namespace ElasticsearchQuery
                             expression = ((BinaryExpression)expression).Left;
                         }
                     }
-                    
+                    if (expType == ExpressionType.Or || expType == ExpressionType.OrElse)
+                        _searchRequest.Query |= CreateNestQuery((BinaryExpression)(expression));
+                    else
                         _searchRequest.Query &= CreateNestQuery((BinaryExpression)(expression));
+
+                    /*else if (binaryExpType == ExpressionType.Or || binaryExpType == ExpressionType.OrElse)
+                        _searchRequest.Query |= CreateNestQuery((BinaryExpression)(expression))*/
+                    ;
                     return m;
-                
+
                 case "Count":
 
                     if (m.Arguments.Count == 1)
@@ -479,7 +488,7 @@ namespace ElasticsearchQuery
                         var memberExp = aggLambda.Body as MemberExpression;
                         aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
                     }
-                    else if(aggLambda.Body.NodeType == ExpressionType.Convert)
+                    else if (aggLambda.Body.NodeType == ExpressionType.Convert)
                     {
                         var memberExp = ((UnaryExpression)(aggLambda.Body)).Operand as MemberExpression;
                         aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
@@ -762,7 +771,7 @@ namespace ElasticsearchQuery
                     return this.CreateNestQuery((BinaryExpression)(b.Left)) | this.CreateNestQuery((BinaryExpression)(b.Right));
             }
             this.Visit(b.Left);
-                
+
             switch (b.NodeType)
             {
                 case ExpressionType.Equal:
@@ -815,13 +824,13 @@ namespace ElasticsearchQuery
             string displayName = null;
             if (m.Member.CustomAttributes.ToList().FirstOrDefault() != null)
                 displayName = m.Member.CustomAttributes.ToList().FirstOrDefault().ConstructorArguments[0].Value.ToString();
-            
+
             if (m.Expression != null && m.Expression.NodeType == ExpressionType.Parameter)
             {
-                if (displayName != null)
+                if (displayName != null && isNestedCondition == true)
                 {
                     field = displayName;
-         
+
                 }
                 else
                     field = m.Member.Name.ToCamelCase();

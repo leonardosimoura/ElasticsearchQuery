@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,8 +9,14 @@ namespace ElasticSearchQuery.Tests
 {
     public class MockModel
     {
+        [DisplayName("mockModels.id")]
         public int Id { get; set; }
+
+        [DisplayName("mockModels.name")]
         public string Name { get; set; }
+
+        public DateTime Date { get; set; }
+
         public MockModel()
         {
 

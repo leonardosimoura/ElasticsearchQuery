@@ -5,6 +5,7 @@ using System.Linq;
 using System;
 using System.Collections.Generic;
 using Nest;
+using ElasticsearchQueryLib.Tests;
 
 namespace ElasticSearchQuery.Tests
 {
@@ -21,15 +22,12 @@ namespace ElasticSearchQuery.Tests
 
         [Test]
         public void VisitConstant_ConstantExpressionGiven_ChangesQueryTranslatorObjectValuePropToConstant()
-        {
-            //Arrange            
+        {        
             object constant = 42.6;
             var constantExpression = Expression.Constant(constant);
 
-            //Act
             queryTranslator.Visit(constantExpression);
 
-            //Assert
             Assert.IsTrue(queryTranslator.Value == constant);
         }
 
@@ -41,76 +39,77 @@ namespace ElasticSearchQuery.Tests
             query = query.Where(x => x.Id == 31);
 
             var actual = queryTranslator.Translate(query.Expression, obj.GetType());
-            
-            // Would be better if we create the query using nest and then compare them
-            // i.e. compare the termQuery we got with a respective nest query that we can make.
-            var termQuery = ((IQueryContainer)actual.SearchRequest.Query).Term;
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
 
-            //var termQuery1 = ((IQueryContainer)((IQueryContainer)actual.SearchRequest.Query).Bool.Must.First()).Term;
+            var query1 = new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(31));
 
-            Assert.AreEqual(termQuery.Field.ToString(), "id");
-            Assert.AreEqual(termQuery.Value, 31);
-
-
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(actualQuery, ((IQueryContainer)query1)));
         }
 
-        /*[Test]
-        public void Translate_ExpressionWithWhereLessThenClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
+        [Test]
+        public void Translate_ExpressionWithWhereAndClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
         {
             var obj = new MockModel();
             IQueryable<MockModel> query = model.AsQueryable();
-            query = query.Where(x => x.Id == 31);
+            query = query.Where(x => x.Id == 31 && x.Name == "test");
 
             var actual = queryTranslator.Translate(query.Expression, obj.GetType());
 
-            var termQuery = ((IQueryContainer)actual.SearchRequest.Query).Term;
-            Assert.AreEqual(termQuery.Field.ToString(), "id");
-            Assert.AreEqual(termQuery.Value, 31);
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+            var expectedQuery = new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(31))
+                & new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test"));
 
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
         }
+
         [Test]
-        public void Translate_MethodCallExpressionWithWhereEqualClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
+        public void Translate_ExpressionWithWhereOrClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
         {
             var obj = new MockModel();
             IQueryable<MockModel> query = model.AsQueryable();
-            query = query.Where(x => x.Id == 31);
+            query = query.Where(x => x.Id == 31 || x.Name == "test");
 
             var actual = queryTranslator.Translate(query.Expression, obj.GetType());
 
-            var termQuery = ((IQueryContainer)actual.SearchRequest.Query).Term;
-            Assert.AreEqual(termQuery.Field.ToString(), "id");
-            Assert.AreEqual(termQuery.Value, 31);
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+            var expectedQuery = new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(31))
+                | new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test"));
 
-        }*/
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
+        }
 
-        /*[Test]
-        public void VisitMember_MemberExpressionGiven_ChangesQueryTranslatorObjectFieldPropToMember()
+        [Test]
+        public void Translate_ExpressionWithMultipleAndOrClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
         {
-            //Arrange            
-            object member = "hkjhk";
-            MemberExpression memberExpression = "x";
-            //Act
-            queryTranslator.Visit(constantExpression);
-            //Assert
-            Assert.IsTrue(queryTranslator.value == constant);
+            var obj = new MockModel();
+            IQueryable<MockModel> query = model.AsQueryable();
+            query = query.Where(x => ((x.Id == 30 && x.Name == "test0") || (x.Id == 31 && x.Name == "test")));
+
+            var actual = queryTranslator.Translate(query.Expression, obj.GetType());
+
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+            var expectedQuery = (new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30))
+                & new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test0")))
+                | (new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(31))
+                & new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test")));
+
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
         }
         [Test]
-        public void SetQuery__ReturnsNestQueryContainerWithRespectiveTermQuery()
+        public void Translate_ExpressionWithMultipleWhereClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
         {
-            queryTranslator.Visit(Expression.con)
-            queryTranslator.binaryExpType = ExpressionType.Equal;
-            var actual = queryTranslator.SetQuery();
-            actual
-        }*/
+            var obj = new MockModel();
+            IQueryable<MockModel> query = model.AsQueryable();
+            query = query.Where(x => x.Id == 30);
+            query = query.Where(x => x.Name == "test0");
 
-        [Test]
-        public void Test()
-        {
-            // Arrange
+            var actual = queryTranslator.Translate(query.Expression, obj.GetType());
 
-            // Act
-
-            // Arrange
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+            var expectedQuery = (new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30))
+                & new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test0")));
+                
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
         }
     }
 }
