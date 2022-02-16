@@ -108,7 +108,7 @@ namespace ElasticSearchQuery.Tests
             var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
             var expectedQuery = (new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30))
                 & new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test0")));
-                
+
             Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
         }
     }

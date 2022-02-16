@@ -238,7 +238,7 @@ namespace ElasticSearchQuery.Tests
             query = query.Where(x => x.MockModels.Any(x => x.Id == 32) || x.MockModels.Any(x => x.Name == "test"));
             query = query.Where(x => (x.MockModels.Any(x => x.Id == 31 || x.Name == "test1") && x.Id >= 3543) || x.ProductName == "test0"
                 && (x.Date < dateTime || x.Id == 30));
-            query.OrderBy(x => x.Id);
+            query = query.OrderBy(x => x.Id).ThenByDescending(x => x.Date);
 
             var actual = queryTranslator.Translate(query.Expression, obj.GetType());
             var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
@@ -275,7 +275,7 @@ namespace ElasticSearchQuery.Tests
             };
             expectedReq.Sort = new List<ISort>
             {
-                sort1
+                sort1, sort2
             };
 
             var expectedQuery = intermedidateQuery5 & intermedidateQuery7;
