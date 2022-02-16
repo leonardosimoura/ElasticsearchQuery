@@ -201,7 +201,7 @@ namespace ElasticSearchQuery.Tests
             IQueryable<NestedMockModel> query = model.AsQueryable();
             var dateTime = DateTime.Now;
             query = query.Where(x => x.MockModels.Any(x => x.Id == 32) || x.MockModels.Any(x => x.Name == "test"));
-            query = query.Where(x => (x.MockModels.Any(x => x.Id == 31 || x.Name == "test1") && x.Id >= 3543) || x.ProductName == "test0" 
+            query = query.Where(x => (x.MockModels.Any(x => x.Id == 31 || x.Name == "test1") && x.Id >= 3543) || x.ProductName == "test0"
                 && (x.Date < dateTime || x.Id == 30));
 
             var actual = queryTranslator.Translate(query.Expression, obj.GetType());
@@ -220,13 +220,67 @@ namespace ElasticSearchQuery.Tests
                 .Query(y => intermedidateQuery2)));
             var intermedidateQuery6 = (new QueryContainerDescriptor<object>().Nested(x => x.Path("mockModels")
                 .Query(y => intermedidateQuery3 | intermedidateQuery4)));
-            var intermedidateQuery7 = ( intermedidateQuery6
+            var intermedidateQuery7 = (intermedidateQuery6
                 & new QueryContainerDescriptor<object>().Range(x => x.Field("id").GreaterThanOrEquals(3543)))
                 | new QueryContainerDescriptor<object>().Term(x => x.Field("productName").Value("test0"))
                 & (new QueryContainerDescriptor<object>().DateRange(x => x.Field("date").LessThan(dateTime))
                 | new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30)));
             var expectedQuery = intermedidateQuery5 & intermedidateQuery7;
             Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
+
+        }
+        [Test]
+        public void Translate_ExpressionWithMultileWhereNestedAndMultiplrAndOrRangeMultipleSortGiven_ReturnsObjectHavingRespectiveNestQuery()
+        {
+            var obj = new NestedMockModel();
+            IQueryable<NestedMockModel> query = model.AsQueryable();
+            var dateTime = DateTime.Now;
+            query = query.Where(x => x.MockModels.Any(x => x.Id == 32) || x.MockModels.Any(x => x.Name == "test"));
+            query = query.Where(x => (x.MockModels.Any(x => x.Id == 31 || x.Name == "test1") && x.Id >= 3543) || x.ProductName == "test0"
+                && (x.Date < dateTime || x.Id == 30));
+            query.OrderBy(x => x.Id);
+
+            var actual = queryTranslator.Translate(query.Expression, obj.GetType());
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+
+
+            var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(32));
+            var intermedidateQuery2 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.name").Value("test"));
+            var intermedidateQuery3 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
+            var intermedidateQuery4 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.name").Value("test1"));
+
+
+            var intermedidateQuery5 = (new QueryContainerDescriptor<object>().Nested(x => x.Path("mockModels")
+                .Query(y => intermedidateQuery1)))
+                | (new QueryContainerDescriptor<object>().Nested(x => x.Path("mockModels")
+                .Query(y => intermedidateQuery2)));
+            var intermedidateQuery6 = (new QueryContainerDescriptor<object>().Nested(x => x.Path("mockModels")
+                .Query(y => intermedidateQuery3 | intermedidateQuery4)));
+            var intermedidateQuery7 = (intermedidateQuery6
+                & new QueryContainerDescriptor<object>().Range(x => x.Field("id").GreaterThanOrEquals(3543)))
+                | new QueryContainerDescriptor<object>().Term(x => x.Field("productName").Value("test0"))
+                & (new QueryContainerDescriptor<object>().DateRange(x => x.Field("date").LessThan(dateTime))
+                | new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30)));
+
+            SearchRequest expectedReq = new SearchRequest();
+            ISort sort1 = new FieldSort()
+            {
+                Field = "id",
+                Order = (SortOrder?)0
+            };
+            ISort sort2 = new FieldSort()
+            {
+                Field = "date",
+                Order = (SortOrder?)1
+            };
+            expectedReq.Sort = new List<ISort>
+            {
+                sort1
+            };
+
+            var expectedQuery = intermedidateQuery5 & intermedidateQuery7;
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
+            Assert.IsTrue(QueryCompare.AreSortsSame(actual.SearchRequest, expectedReq));
 
         }
 

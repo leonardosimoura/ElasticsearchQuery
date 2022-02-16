@@ -413,7 +413,7 @@ namespace ElasticsearchQuery
                     }
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
                     var expression = lambda.Body;
-                     _searchRequest.Query &= CreateNestQuery((expression));
+                    _searchRequest.Query &= CreateNestQuery((expression));
 
                     return m;
 
@@ -699,6 +699,12 @@ namespace ElasticsearchQuery
                         this.Visit(u.Operand);
                     }
                     break;
+                case ExpressionType.Convert:
+                    {
+                        this.Visit(u.Operand);
+                    }
+                    break;
+
                 default:
                     throw new NotSupportedException(string.Format("The unary operator '{0}' is not supported", u.NodeType));
             }

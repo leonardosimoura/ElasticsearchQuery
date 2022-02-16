@@ -2,6 +2,7 @@ using ElasticsearchQuery;
 using ElasticSearchQuery.Tests;
 using Nest;
 using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -147,6 +148,49 @@ namespace ElasticsearchQueryLib.Tests
                 & new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30)))
                 | new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test0"))
                 & (new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(31))
+                | new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test")));
+
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(actualQuery, ((IQueryContainer)expectedQuery)));
+        }
+
+        [Test]
+        public void Translate_ExpressionWithStartsWithWithNestedAndOrRangeClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
+        {
+            var obj = new MockModel();
+            var dateTime = DateTime.Now;
+            IQueryable<MockModel> query = model.AsQueryable();
+            query = query.Where(x => (x.Name.StartsWith("jg") && x.Id == 30) || x.Name == "test0" && (x.Id <= 31 && x.Date > dateTime || x.Name == "test"));
+
+            Expression exp = query.Expression;
+            var actual = queryTranslator.Translate(query.Expression, obj.GetType());
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+
+            var expectedQuery = (new QueryContainerDescriptor<object>().Prefix(x => x.Field("name").Value("jg"))
+                & new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30)))
+                | new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test0"))
+                & (new QueryContainerDescriptor<object>().Range(x => x.Field("id").LessThanOrEquals(31))
+                & new QueryContainerDescriptor<object>().DateRange(x => x.Field("date").GreaterThan(dateTime))
+                | new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test")));
+
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(actualQuery, ((IQueryContainer)expectedQuery)));
+        }
+        [Test]
+        public void Translate_ExpressionWithContainsWithNestedAndOrRangeClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
+        {
+            var obj = new MockModel();
+            var dateTime = DateTime.Now;
+            IQueryable<MockModel> query = model.AsQueryable();
+            query = query.Where(x => (x.Name.Contains("jg") && x.Id == 30) || x.Name == "test0" && (x.Id <= 31 && x.Date > dateTime || x.Name == "test"));
+
+            Expression exp = query.Expression;
+            var actual = queryTranslator.Translate(query.Expression, obj.GetType());
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+
+            var expectedQuery = (new QueryContainerDescriptor<object>().Match(x => x.Field("name").Query("jg"))
+                & new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(30)))
+                | new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test0"))
+                & (new QueryContainerDescriptor<object>().Range(x => x.Field("id").LessThanOrEquals(31))
+                & new QueryContainerDescriptor<object>().DateRange(x => x.Field("date").GreaterThan(dateTime))
                 | new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test")));
 
             Assert.IsTrue(QueryCompare.AreQueryContainersSame(actualQuery, ((IQueryContainer)expectedQuery)));

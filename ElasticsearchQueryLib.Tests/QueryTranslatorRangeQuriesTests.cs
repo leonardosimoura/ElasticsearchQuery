@@ -177,5 +177,41 @@ namespace ElasticsearchQueryLib.Tests
             Assert.IsTrue(QueryCompare.AreDateRangeQueriesSame(expectedQuery, actualQuery));
             Assert.IsTrue(QueryCompare.AreTermsSame(expectedQuery, actualQuery));
         }
+
+        // Combination of two 
+
+        [Test]
+        public void Translate_ExpressionWithMultipleRangeClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
+        {
+            var obj = new MockModel();
+            IQueryable<MockModel> query = model.AsQueryable();
+            var dateTime = DateTime.Now;
+            query = query.Where(x => x.Date >= dateTime && x.Id < 31);
+
+            var actual = queryTranslator.Translate(query.Expression, obj.GetType());
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+
+            var expectedQuery = new QueryContainerDescriptor<object>().DateRange(x => x.Field("date").GreaterThanOrEquals(dateTime))
+                & new QueryContainerDescriptor<object>().Range(x => x.Field("id").LessThan(31));
+
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
+        }
+        [Test]
+        public void Translate_ExpressionWithMultipleRangeAndOrClauseGiven_ReturnsObjectHavingRespectiveNestQuery()
+        {
+            var obj = new MockModel();
+            IQueryable<MockModel> query = model.AsQueryable();
+            var dateTime = DateTime.Now;
+            query = query.Where(x => (x.Date >= dateTime && x.Name == "test") && x.Id < 31);
+
+            var actual = queryTranslator.Translate(query.Expression, obj.GetType());
+            var actualQuery = ((IQueryContainer)actual.SearchRequest.Query);
+
+            var expectedQuery = (new QueryContainerDescriptor<object>().DateRange(x => x.Field("date").GreaterThanOrEquals(dateTime))
+                & new QueryContainerDescriptor<object>().Term(x => x.Field("name").Value("test")))
+                & new QueryContainerDescriptor<object>().Range(x => x.Field("id").LessThan(31));
+
+            Assert.IsTrue(QueryCompare.AreQueryContainersSame(expectedQuery, actualQuery));
+        }
     }
 }
