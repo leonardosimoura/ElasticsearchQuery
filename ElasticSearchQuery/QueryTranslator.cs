@@ -181,6 +181,8 @@ namespace ElasticsearchQuery
                 default:
                     break;
             }
+            /*return queryContainer;
+
             if (_searchRequest.Query == null)
             {
                 _searchRequest.Query = queryContainer;
@@ -195,7 +197,7 @@ namespace ElasticsearchQuery
                 {
                     _searchRequest.Query = _searchRequest.Query || queryContainer;
                 }
-            }
+            }*/
         }
 
         private QueryContainer SetQuery()
@@ -411,7 +413,7 @@ namespace ElasticsearchQuery
                     }
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
                     var expression = lambda.Body;
-                    var flag = false;
+                    /*var flag = false;
                     if (lambda.Body is MethodCallExpression)
                     {
                         isNestedCondition = true;
@@ -442,9 +444,9 @@ namespace ElasticsearchQuery
                         }
                     }
                     if (expType == ExpressionType.Or || expType == ExpressionType.OrElse)
-                        _searchRequest.Query |= CreateNestQuery((BinaryExpression)(expression));
-                    else
-                        _searchRequest.Query &= CreateNestQuery((BinaryExpression)(expression));
+                        _searchRequest.Query |= CreateNestQuery((expression));
+                    else*/
+                        _searchRequest.Query &= CreateNestQuery((expression));
 
                     /*else if (binaryExpType == ExpressionType.Or || binaryExpType == ExpressionType.OrElse)
                         _searchRequest.Query |= CreateNestQuery((BinaryExpression)(expression))*/
@@ -739,24 +741,38 @@ namespace ElasticsearchQuery
             return u;
         }
 
-        protected QueryContainer CreateNestQuery(BinaryExpression b)
+        protected QueryContainer CreateNestQuery(Expression expression)
         {
+            if (expression is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.Name == "Any")
+                {
+                    isNestedCondition = true;
+                    LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(methodCallExpression.Arguments[1]);
+                    var exp = lambda.Body;
+                    var query = CreateNestQuery(exp);
+                    isNestedCondition = false;
+                    return query;
+                }
+                return null;
+            }
+            var b = (BinaryExpression)(expression);
             binaryExpType = b.NodeType;
 
             if (isNestedCondition)
             {
                 if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
                 {
-                    var left = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Left)))).Nested.Query;
-                    var right = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Right)))).Nested.Query;
+                    var left = ((IQueryContainer)(this.CreateNestQuery((b.Left)))).Nested.Query;
+                    var right = ((IQueryContainer)(this.CreateNestQuery((b.Right)))).Nested.Query;
                     var path = field.Substring(0, field.LastIndexOf('.'));
                     var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left & right));
                     return nestedQuery;
                 }
                 else if (binaryExpType == ExpressionType.Or || binaryExpType == ExpressionType.OrElse)
                 {
-                    var left = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Left)))).Nested.Query;
-                    var right = ((IQueryContainer)(this.CreateNestQuery((BinaryExpression)(b.Right)))).Nested.Query;
+                    var left = ((IQueryContainer)(this.CreateNestQuery((b.Left)))).Nested.Query;
+                    var right = ((IQueryContainer)(this.CreateNestQuery((b.Right)))).Nested.Query;
                     var path = field.Substring(0, field.LastIndexOf('.'));
                     var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left | right));
                     return nestedQuery;
@@ -766,9 +782,9 @@ namespace ElasticsearchQuery
             else
             {
                 if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
-                    return this.CreateNestQuery((BinaryExpression)(b.Left)) & this.CreateNestQuery((BinaryExpression)(b.Right));
+                    return this.CreateNestQuery((b.Left)) & this.CreateNestQuery((b.Right));
                 else if (binaryExpType == ExpressionType.OrElse || binaryExpType == ExpressionType.Or)
-                    return this.CreateNestQuery((BinaryExpression)(b.Left)) | this.CreateNestQuery((BinaryExpression)(b.Right));
+                    return this.CreateNestQuery((b.Left)) | this.CreateNestQuery((b.Right));
             }
             this.Visit(b.Left);
 

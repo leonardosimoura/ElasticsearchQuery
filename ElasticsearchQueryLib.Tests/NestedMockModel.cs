@@ -11,6 +11,7 @@ namespace ElasticsearchQueryLib.Tests
     {
         public long Id { get; set; }
         public string ProductName { get; set; }
+        public DateTime Date { get; set; }
         public IList<MockModel> MockModels { get; set; }
     }
 }

@@ -22,7 +22,9 @@ namespace ElasticsearchQueryLib.Tests
             if (nullCount == 0)
                 return AreTermsSame(query1, query2)
                 & AreMatchQueriesSame(query1, query2)
-                & ArePrefixQueriesSame(query1, query2);
+                & ArePrefixQueriesSame(query1, query2) 
+                & AreRangeQueriesSame(query1, query2)
+                & AreDateRangeQueriesSame(query1, query2);
                    /* Problem is if the range query is of numeric then 
                     * casting it to the datatime range will throw exception
                     * & AreRangeQueriesSame(query1, query2) 
@@ -148,9 +150,18 @@ namespace ElasticsearchQueryLib.Tests
         }
         public static bool AreRangeQueriesSame(IQueryContainer query1, IQueryContainer query2)
         {
-            var range1 = (INumericRangeQuery)query1.Range;
-            var range2 = (INumericRangeQuery)query2.Range;
-
+            INumericRangeQuery range1;
+            INumericRangeQuery range2;
+            try
+            {
+                range1 = (INumericRangeQuery)query1.Range;
+                range2 = (INumericRangeQuery)query2.Range;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+            
             var nullCount = NullCount(range1, range2);
             if (nullCount == 0)
                 return true;
@@ -170,9 +181,17 @@ namespace ElasticsearchQueryLib.Tests
         }
         public static bool AreDateRangeQueriesSame(IQueryContainer query1, IQueryContainer query2)
         {
-            var range1 = (IDateRangeQuery)query1.Range;
-            var range2 = (IDateRangeQuery)query2.Range;
-
+            IDateRangeQuery range1;
+            IDateRangeQuery range2;
+            try
+            {
+                range1 = (IDateRangeQuery)query1.Range;
+                range2 = (IDateRangeQuery)query2.Range;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
             var nullCount = NullCount(range1, range2);
             if (nullCount == 0)
                 return true;
