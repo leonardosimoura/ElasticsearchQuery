@@ -232,5 +232,3 @@ namespace ElasticSearchQuery.Tests
 
     }
 }
-
-//var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));

@@ -413,44 +413,8 @@ namespace ElasticsearchQuery
                     }
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
                     var expression = lambda.Body;
-                    /*var flag = false;
-                    if (lambda.Body is MethodCallExpression)
-                    {
-                        isNestedCondition = true;
-                        this.Visit(lambda.Body);
-                        isNestedCondition = false;
-                        return m;
-                    }
-                    else
-                    {
-                        if (((BinaryExpression)lambda.Body).Left is MethodCallExpression)
-                        {
-                            isNestedCondition = true;
-                            expType = lambda.Body.NodeType;
-                            this.Visit(((BinaryExpression)lambda.Body).Left);
-                            isNestedCondition = false;
-                            expression = ((BinaryExpression)expression).Right;
-                            flag = true;
-                        }
-                        if (((BinaryExpression)lambda.Body).Right is MethodCallExpression)
-                        {
-                            isNestedCondition = true;
-                            expType = lambda.Body.NodeType;
-                            this.Visit(((BinaryExpression)lambda.Body).Right);
-                            isNestedCondition = false;
-                            if (flag)
-                                return m;
-                            expression = ((BinaryExpression)expression).Left;
-                        }
-                    }
-                    if (expType == ExpressionType.Or || expType == ExpressionType.OrElse)
-                        _searchRequest.Query |= CreateNestQuery((expression));
-                    else*/
-                        _searchRequest.Query &= CreateNestQuery((expression));
+                     _searchRequest.Query &= CreateNestQuery((expression));
 
-                    /*else if (binaryExpType == ExpressionType.Or || binaryExpType == ExpressionType.OrElse)
-                        _searchRequest.Query |= CreateNestQuery((BinaryExpression)(expression))*/
-                    ;
                     return m;
 
                 case "Count":
@@ -754,7 +718,11 @@ namespace ElasticsearchQuery
                     isNestedCondition = false;
                     return query;
                 }
-                return null;
+                else //if(methodCallExpression.Method.Name == "Contains" || methodCallExpression.Method.Name == "StartsWith")
+                {
+                    this.Visit(methodCallExpression);
+                    return queryContainer;
+                }
             }
             var b = (BinaryExpression)(expression);
             binaryExpType = b.NodeType;
