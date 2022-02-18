@@ -23,7 +23,7 @@ namespace ElasticsearchQuery
             //Need this for the elastic search request
             Type elementType = TypeSystem.GetElementType(expression.Type);
             Type expType = TypeSystem.GetElementType(expression.Type);
-
+            
             if (Attribute.IsDefined(expType, typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false)
                 && expType.IsGenericType && expType.Name.Contains("AnonymousType")
                 && (expType.Name.StartsWith("<>") || expType.Name.StartsWith("VB$"))
@@ -70,6 +70,9 @@ namespace ElasticsearchQuery
 
             if (elasticQueryResult.ReturnNumberOfRows)
             {
+                /*elementType = new object { }.GetType();
+                expType = elementType;*/
+               /// return (new { request.HitsMetadata.Total.Value });
                 return Convert.ChangeType(request.HitsMetadata.Total.Value, expType);
             }
 
@@ -177,12 +180,17 @@ namespace ElasticsearchQuery
                 else
                 {
                     var prop = closedGeneric.GetProperty("Documents");
-
+                    var countProp = closedGeneric.GetProperty("HitsMetadata");
                     if (prop.PropertyType.GetGenericArguments().Count() == 1 &&
                         prop.PropertyType.GetGenericArguments() .First() == expType)
                     {
                         var value = prop.GetValue(request);
+                        var count = countProp.GetValue(request);
+
+                        var response = new List<object>();
+                        response.Add(new { count.Total.Value, count.Total.Relation, value});
                         return value;
+                        return response.AsEnumerable();
                     }
                     else
                     {
