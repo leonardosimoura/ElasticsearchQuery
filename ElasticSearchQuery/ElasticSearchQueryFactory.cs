@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 
 namespace ElasticsearchQuery
@@ -15,9 +16,13 @@ namespace ElasticsearchQuery
             return new ElasticQuery<TEntity>(provider);
         }
 
-        public static IQueryable<TEntity> CreateQuery<TEntity>(IElasticClient client)
+        public static IQueryable<TEntity> CreateQuery<TEntity>(IElasticClient client, Expression expression = null)
         {
             var provider = new ElasticQueryProvider(client);
+            if (expression != null)
+            {
+                return new ElasticQuery<TEntity>(provider, expression);
+            }
             return new ElasticQuery<TEntity>(provider);
         }
     }

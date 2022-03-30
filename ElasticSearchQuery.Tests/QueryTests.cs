@@ -6,15 +6,19 @@ using System.Linq;
 using System.Threading;
 using ElasticsearchQuery.Extensions;
 using Xunit;
+using System.Reflection;
+using System.Linq.Expressions;
+using System.Text;
+
 
 namespace ElasticsearchQuery.Tests
 {
-    public class QueryTests
+    public class QueryTests 
     {
         private IElasticClient ObterCliente()
         {
             // docker run --name elasticsearch --restart=always -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" -d docker.elastic.co/elasticsearch/elasticsearch-oss:7.6.1
-            var node = new Uri("http://localhost:9200/");
+            var node = new Uri("http://sd-lt-w-bnnxq73:9200/");
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
@@ -95,7 +99,7 @@ namespace ElasticsearchQuery.Tests
         [Fact]
         public void WhereWithCollectionContainsMethod()
         {
-
+            
             var products = new ProductTest[]
             {
                 new ProductTest(Guid.NewGuid(), "Product A", 99),
@@ -119,6 +123,107 @@ namespace ElasticsearchQuery.Tests
             var result = query.ToList();
             Assert.NotEmpty(result);
             Assert.True(result.All(a => products.Any(p => p.ProductId == a.ProductId)));
+        }
+
+      
+        [Fact]
+        public void CheckNested()
+        {
+
+            
+            var t = new TestType(1, 1, "JOHN");
+            var c = new TestType(1, 1, "BOB");
+            var se = new TestType(1, 2, "STEVE");
+            var be = new TestType(1, 3, "JAMES");
+
+            var p = new List<TestType>() { t, c, se };
+            var d = new List<TestType>() { t, c, se, be };
+            
+            var products = new ProductTest[]
+            {
+                new ProductTest(Guid.NewGuid(), "Product A", 99,t),
+                new ProductTest(Guid.NewGuid(), "Product B", 150,t),
+                new ProductTest(Guid.NewGuid(), "Product C", 200,t ),
+                new ProductTest(Guid.NewGuid(), "Product D", 300, t),
+                new ProductTest(Guid.NewGuid(), "Product E", 300,c),
+                new ProductTest(Guid.NewGuid(), "Product F", 300, c),
+                new ProductTest(Guid.NewGuid(), "Product G", 300, se),
+                new ProductTest(Guid.NewGuid(), "Product H", 300, se),
+                new ProductTest(Guid.NewGuid(), "Product I", 300, se)
+
+                // new ProductTest(Guid.NewGuid(), "Product A", 99,p),
+                //new ProductTest(Guid.NewGuid(), "Product B", 150,p),
+                //new ProductTest(Guid.NewGuid(), "Product C", 200,p ),
+                //new ProductTest(Guid.NewGuid(), "Product D", 300, p),
+                //new ProductTest(Guid.NewGuid(), "Product E", 300,p),
+                //new ProductTest(Guid.NewGuid(), "Product F", 300, p),
+                //new ProductTest(Guid.NewGuid(), "Product G", 300, p),
+                //new ProductTest(Guid.NewGuid(), "Product H", 300, p),
+                //new ProductTest(Guid.NewGuid(), "Product I", 300, d)
+
+            };
+
+            AddData(products.ToArray());
+            //var connection = new ElasticConnection(new Uri("http://localhost:9200"), index: "producttest");
+
+
+           var client = ObterCliente();
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+
+
+
+            query = query.Where(w => w.Test.MarketId == 1);
+
+
+            //var bc = query.Expression;
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.True(result.All(a => a.Test.MarketId == 1));
+
+
+            //var context = new ElasticContext(connection);
+
+
+
+            ////var productList = GenerateData(1000, products);
+
+
+
+            //var q = context.Query<ProductTest>();
+            //q.Where(e => e.Name.Contains("Product"));
+
+
+            //var result = q.ToList();
+
+            //var client = ObterCliente();
+
+
+
+            ////Assert.NotEmpty(result);
+            //////Assert.True(result.All(a => a.Test.MarketId == 1));
+            ////Assert.True(result.Select(x => x.Test.MemberName).Distinct().Count() > 1);
+            //ParameterExpression pe1 = Expression.Parameter(typeof(ProductTest), "e");
+            //Expression left1 = Expression.Property(pe1, typeof(ProductTest).GetProperty("Test"));
+            //left1 = Expression.Property(left1, typeof(TestType).GetProperty("MarketId"));
+            //Expression right1 = Expression.Constant(1, typeof(int));
+            //Expression expression1 = Expression.Equal(left1, right1);
+            //var lambda2 = Expression.Lambda<Func<ProductTest, bool>>(expression1, pe1).Compile();
+
+
+
+            //var q1 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            //q1 = q1.Where(lambda2).AsQueryable();
+            //var r = q1.ToList();
+            //Assert.NotEmpty(r);
+            //Assert.True(r.All(a => a.Test.MarketId == 1));
+
+
+            //var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            //q2 = q2.Where(e => e.Test.MarketId == 1);
+            //var r3 = q2.ToList();
+            //Assert.NotEmpty(r3);
+            //Assert.True(r3.All(a => a.Test.MarketId == 1));
         }
 
         [Fact]
@@ -530,6 +635,28 @@ namespace ElasticsearchQuery.Tests
         }
 
         [Fact]
+        public void NotEqualsTest()
+        {
+            var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
+            var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest2", 9.9M);
+            var p = new ProductTest[] { produto, produto2 };
+            AddData(p);
+
+            var client = ObterCliente();
+
+            var pId = produto.ProductId;
+            var pNome = produto.Name;
+
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            query = query.Where(w => w.Name != "ProductTest");
+
+            var result = query.ToList();
+            Assert.NotEmpty(result);
+            Assert.True(result.All(a => a.Name != "ProductTest"));
+        }
+
+
+        [Fact]
         public void NotEqualsDeny()
         {
             var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
@@ -662,6 +789,8 @@ namespace ElasticsearchQuery.Tests
             Assert.NotEmpty(result);
             Assert.Contains(result, f => f.ProductId == pId);
         }
+       
+        
 
         [Fact]
         public void LessThanValid()
@@ -826,17 +955,44 @@ namespace ElasticsearchQuery.Tests
         {
 
         }
-        public ProductTest(Guid productId, string name, decimal price)
+        public ProductTest(Guid productId, string name, decimal price,TestType t = null)
         {
+            //public ProductTest(Guid productId, string name, decimal price, IList<TestType> t = null)       {
             ProductId = productId;
             Name = name;
             NameAsText = name;
             Price = price;
+            //Tests = t;
+            Test = t;
+          
         }
 
         public Guid ProductId { get; set; }
         public string Name { get; set; }
         public string NameAsText { get; set; }
         public decimal Price { get; set; }
+       
+        //[Nested]
+        //public IList<TestType> Tests { get; set; }
+
+        [Nested]
+        public TestType Test { get; set; }
+    }
+
+    public class TestType
+    {
+        public TestType()
+        {
+
+        }
+        public TestType(int id, int marketId, string memberName)
+        {
+            Id = id;
+            MarketId = marketId;
+            MemberName = memberName;
+        }
+        public int Id { get; set; }
+        public int MarketId { get; set; }
+        public string MemberName { get; set; }
     }
 }

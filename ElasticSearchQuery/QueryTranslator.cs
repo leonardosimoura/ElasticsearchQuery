@@ -616,6 +616,22 @@ namespace ElasticsearchQuery
 
         protected override Expression VisitBinary(BinaryExpression b)
         {
+            if (b.Left.ToString().Count(s => s == '.') > 1)
+            {
+                bool firstV = false;
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                foreach (var token in b.Left.ToString().Split('.'))
+                {
+                    if (!firstV)
+                    {
+                        firstV = true;
+                        continue;
+                    }
+                    sb.Append($"{token[0].ToString().ToLower()}{token.Substring(1)}.");
+                  
+                }
+                this.field = sb.ToString().Substring(0, sb.Length - 1);
+            }
             this.Visit(b.Left);
 
             switch (b.NodeType)
