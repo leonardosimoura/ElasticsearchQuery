@@ -9,7 +9,9 @@ using Xunit;
 using System.Reflection;
 using System.Linq.Expressions;
 using System.Text;
-
+using System.Diagnostics;
+using ElasticLinq.Mapping;
+using ElasticLinq.Logging;
 
 namespace ElasticsearchQuery.Tests
 {
@@ -27,6 +29,13 @@ namespace ElasticsearchQuery.Tests
             return client;
         }
 
+        private ElasticMapping GetMap()
+        {
+            var map = new ElasticMapping(false, false, false, false, EnumFormat.Integer);
+            return map;
+        }
+
+        
         private void CreateIndexTest(IElasticClient client, string indexName = "producttest" , string indexType = "producttest")
         {
             client.Indices.Create(indexName, cr => 
@@ -57,10 +66,24 @@ namespace ElasticsearchQuery.Tests
 
         private IEnumerable<ProductTest> GenerateData(int size, params ProductTest[] additionalData)
         {
+           
+            var testType = new Faker<TestType>("pt_BR")
+                .RuleFor(o => o.MarketId, f => f.Random.Int(1, 10))
+                .RuleFor(o => o.Id, f => f.Random.Int())
+                .RuleFor(o => o.MemberName, f => (f.Random.Int() % 2 == 0 ? "BOB" : "STEVE"))
+                .RuleFor(o => o.ProductType, f=> (f.Random.Int() % 2 == 0 ? "GOOD" : "BAD"))
+                .RuleFor(o => o.VegetableId, f=> f.Random.Int(1,5));
+
+            
+
+
             var testsProducts = new Faker<ProductTest>("pt_BR")    
                                 .RuleFor(o => o.Name ,f => f.Commerce.ProductName())
                                 .RuleFor(o => o.Price, f => f.Finance.Amount(1))
                                 .RuleFor(o => o.ProductId, f => Guid.NewGuid())
+                                .RuleFor(o => o.Institution, f => (f.Random.Int() % 2 == 0 ? "SOMEWHERE" : "ELSE"))
+                                .RuleFor(o => o.Test, f => testType)
+                                
                                 .FinishWith((f, p) =>
                                 {
                                     p.NameAsText = p.Name;
@@ -90,7 +113,7 @@ namespace ElasticsearchQuery.Tests
 
             ElasticQueryMapper.Map(typeof(ProductTest), indexName, indexType);
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             var result = query.ToList();
             Assert.NotEmpty(result);
             ElasticQueryMapper.Clean();
@@ -114,7 +137,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             var productsIds = products.Select(s => s.ProductId).ToList();
 
@@ -163,28 +186,59 @@ namespace ElasticsearchQuery.Tests
 
             };
 
-            AddData(products.ToArray());
+            //AddData(products.ToArray());
             //var connection = new ElasticConnection(new Uri("http://localhost:9200"), index: "producttest");
 
+            var productList = GenerateData(1150, products);
+            //AddData(products);
+            AddData(productList.ToArray());
+            
+            var client = ObterCliente();
+            Stopwatch sw = new Stopwatch();
+                sw.Start();
+            //var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
-           var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-
-
-
-            query = query.Where(w => w.Test.MarketId == 1);
+            //query = query.Where(w => w.Test.MarketId == 1);
+            ////query = query.Where(e => e.Test.MarketId == 1 && e.Test.MemberName == "STEVE");
 
 
-            //var bc = query.Expression;
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.True(result.All(a => a.Test.MarketId == 1));
+            ////var bc = query.Expression;
+            //var result = query.ToList();
+            //sw.Stop();
+            //var timer = sw.ElapsedMilliseconds;
 
+            //Assert.NotEmpty(result);
+            //Assert.True(result.All(a => a.Test.MarketId == 1));
+            //sw.Reset();
+            //sw.Start();
+            //var q1 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+
+
+
+            //q1 = q1.Where(w => w.Test.MemberName == "BOB");
+
+
+            ////var bc = query.Expression;
+            //var res = q1.ToList();
+            //sw.Stop();
+            //var timer2 = sw.ElapsedMilliseconds;
+
+            //Assert.NotEmpty(res);
+            //Assert.True(res.All(a => a.Test.MemberName == "BOB"));
+
+            var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
+            q2 = q2.Where(a => a.Name == "Product A" || (a.Price > 250M && a.Name.Contains("Product")));
+
+
+            var q2res = q2.ToList();
+            Assert.NotEmpty(q2res);
+            Assert.True(q2res.All(a => a.Name == "Product A" || (a.Price > 250M && a.Name.Contains("Product"))));
 
             //var context = new ElasticContext(connection);
 
-
+            //var count1 = result.Count;
+            //var count2 = res.Count;
 
             ////var productList = GenerateData(1000, products);
 
@@ -236,7 +290,7 @@ namespace ElasticsearchQuery.Tests
             AddData(productList.ToArray());
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Where(w => w.Price == 99).OrderBy(o => o.Name).ThenBy(o => o.Price);
 
@@ -256,7 +310,7 @@ namespace ElasticsearchQuery.Tests
             AddData(productList.ToArray());
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Where(w => w.NameAsText.MatchPhrase("of category"));
 
@@ -276,7 +330,7 @@ namespace ElasticsearchQuery.Tests
             AddData(productList.ToArray());
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Where(w => !w.NameAsText.MatchPhrase("of category"));
 
@@ -295,7 +349,7 @@ namespace ElasticsearchQuery.Tests
             AddData(productList.ToArray());
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Where(w => w.MultiMatch("category",t => t.NameAsText,t => t.Name));
 
@@ -315,7 +369,7 @@ namespace ElasticsearchQuery.Tests
             AddData(productList.ToArray());
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Where(w => !w.MultiMatch("category", t => t.NameAsText, t => t.Name));
 
@@ -334,7 +388,7 @@ namespace ElasticsearchQuery.Tests
             AddData(productList.ToArray());
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Where(w => w.Exists(t => t.NameAsText));
 
@@ -351,7 +405,7 @@ namespace ElasticsearchQuery.Tests
             AddData(productList.ToArray());
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.OrderBy(o => o.Name).ThenBy(o => o.Price);
 
@@ -375,7 +429,7 @@ namespace ElasticsearchQuery.Tests
             var client = ObterCliente();
 
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Where(w => w.Price == 150).OrderByDescending(o => o.Name).ThenByDescending(o => o.Price);
 
@@ -393,7 +447,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.OrderByDescending(o => o.Name).ThenByDescending(o => o.Price);
             var product = productList.OrderByDescending(o => o.Name).ThenByDescending(o => o.Price).First();
@@ -417,7 +471,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             query = query.Take(take).Skip(skip);
 
@@ -440,7 +494,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => !w.Name.EndsWith("Test"));
 
             var result = query.ToList();
@@ -462,7 +516,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Name.EndsWith("st"));
 
             var result = query.ToList();
@@ -482,7 +536,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Name.EndsWith("zzzzzzz"));
 
             var result = query.ToList();
@@ -503,7 +557,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => !w.Name.StartsWith("Test"));
 
             var result = query.ToList();
@@ -525,7 +579,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Name.StartsWith("Prod"));
 
             var result = query.ToList();
@@ -547,7 +601,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Name.StartsWith("zzzzzzzzzzz"));
 
             var result = query.ToList();
@@ -567,7 +621,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => !w.Name.Contains("Test"));
 
             var result = query.ToList();
@@ -587,7 +641,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Name.Contains("Test"));
 
             var result = query.ToList();
@@ -607,7 +661,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Name.Contains("Coca-Cola"));
 
             var result = query.ToList();
@@ -626,7 +680,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.ProductId != Guid.Empty);
 
             var result = query.ToList();
@@ -634,26 +688,7 @@ namespace ElasticsearchQuery.Tests
             Assert.Contains(result, f => f.ProductId == pId);
         }
 
-        [Fact]
-        public void NotEqualsTest()
-        {
-            var produto = new ProductTest(Guid.NewGuid(), "ProductTest", 9.9M);
-            var produto2 = new ProductTest(Guid.NewGuid(), "ProductTest2", 9.9M);
-            var p = new ProductTest[] { produto, produto2 };
-            AddData(p);
-
-            var client = ObterCliente();
-
-            var pId = produto.ProductId;
-            var pNome = produto.Name;
-
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-            query = query.Where(w => w.Name != "ProductTest");
-
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.True(result.All(a => a.Name != "ProductTest"));
-        }
+       
 
 
         [Fact]
@@ -668,7 +703,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => !(w.ProductId != Guid.Empty));
 
             var result = query.ToList();
@@ -689,7 +724,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.ProductId != pId);
 
             var result = query.ToList();
@@ -708,7 +743,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => !(w.ProductId == pId));
 
             var result = query.ToList();
@@ -728,7 +763,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.ProductId == pId);
 
             var result = query.ToList();
@@ -748,7 +783,7 @@ namespace ElasticsearchQuery.Tests
             var pId = produto.ProductId;
             var pNome = produto.Name;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.ProductId == Guid.Empty);
 
             var result = query.ToList();
@@ -764,7 +799,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Price > 50);
 
             var result = query.ToList();
@@ -782,7 +817,7 @@ namespace ElasticsearchQuery.Tests
 
             var pId = produto.ProductId;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Price > 1);
 
             var result = query.ToList();
@@ -803,7 +838,7 @@ namespace ElasticsearchQuery.Tests
 
             var pId = produto.ProductId;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Price < 50);
 
             var result = query.ToList();
@@ -822,7 +857,7 @@ namespace ElasticsearchQuery.Tests
 
             var pId = produto.ProductId;
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => !(w.Price < 50));
 
             var result = query.ToList();
@@ -840,7 +875,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query = query.Where(w => w.Price < 1);
 
             var result = query.ToList();
@@ -857,7 +892,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             var totalPrice = query.Sum(s => s.Price);
 
             Assert.Equal(produto1.Price + produto2.Price, totalPrice);
@@ -873,7 +908,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             var count = query.Count();
 
             Assert.Equal(2, count);
@@ -892,7 +927,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             var count = query.Where(w => w.Price < 10M).Count();
 
             Assert.Equal(4, count);
@@ -908,7 +943,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             var result = (from o in query
                           group o by o.Name into g
                           select new
@@ -932,7 +967,7 @@ namespace ElasticsearchQuery.Tests
 
             var client = ObterCliente();
 
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
 
             var result = (from o in query
                           group o by new { o.Name, o.ProductId } into g
@@ -970,6 +1005,7 @@ namespace ElasticsearchQuery.Tests
         public Guid ProductId { get; set; }
         public string Name { get; set; }
         public string NameAsText { get; set; }
+        public string Institution { get; set; }
         public decimal Price { get; set; }
        
         //[Nested]
@@ -994,5 +1030,7 @@ namespace ElasticsearchQuery.Tests
         public int Id { get; set; }
         public int MarketId { get; set; }
         public string MemberName { get; set; }
+        public string ProductType { get; set; }
+        public int VegetableId { get; set; }
     }
 }
