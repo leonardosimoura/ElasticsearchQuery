@@ -25,6 +25,6 @@
 	  <PackageReference Include="NEST" Version="7.15.2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\ElasticLINQ\Source\ElasticLINQ\ElasticLINQ.csproj" />
+    <ProjectReference Include="..\ElasticLINQ\ElasticLINQ.csproj" />
   </ItemGroup>
 </Project>

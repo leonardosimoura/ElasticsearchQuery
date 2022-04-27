@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ElasticsearchQuery", "Elast
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ElasticsearchQuery.Tests", "ElasticSearchQuery.Tests\ElasticsearchQuery.Tests.csproj", "{DF20074F-1732-4A5B-9F10-9C7E51A2E85D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ElasticLINQ", "..\ElasticLINQ\Source\ElasticLINQ\ElasticLINQ.csproj", "{875E1599-5B7F-4084-BBE0-0D70C3C80428}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ElasticLINQ", "ElasticLINQ\ElasticLINQ.csproj", "{875E1599-5B7F-4084-BBE0-0D70C3C80428}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
