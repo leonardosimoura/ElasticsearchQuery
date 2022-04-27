@@ -154,6 +154,64 @@ namespace ElasticsearchQuery.Tests
             Assert.True(result.All(a => products.Any(p => p.ProductId == a.ProductId)));
         }
 
+
+        [Fact]
+        public void CheckContainsNested()
+        {
+            var cat1 = new Category(1, 2, "BACON", "F");
+            var cat2 = new Category(2, 3, "OTHER", "G");
+
+
+            var t = new TestType(1, 1, "JOHN");
+            t.Category = cat1;
+            var c = new TestType(1, 1, "BOB");
+            c.Category = cat1;
+            var se = new TestType(1, 2, "STEVE");
+            se.Category = cat2;
+            var be = new TestType(1, 3, "JAMES");
+
+            var p = new List<TestType>() { t, c, se };
+            var d = new List<TestType>() { t, c, se, be };
+
+            var products = new ProductTest[]
+            {
+                new ProductTest(Guid.NewGuid(), "Product A", 99,t),
+                new ProductTest(Guid.NewGuid(), "Product B", 150,t),
+                new ProductTest(Guid.NewGuid(), "Product C", 200,t ),
+                new ProductTest(Guid.NewGuid(), "Product D", 300, t),
+                new ProductTest(Guid.NewGuid(), "Product E", 300,c),
+                new ProductTest(Guid.NewGuid(), "Product F", 300, c),
+                new ProductTest(Guid.NewGuid(), "Product G", 300, se),
+                new ProductTest(Guid.NewGuid(), "Product H", 300, se),
+                new ProductTest(Guid.NewGuid(), "Product I", 300, se)
+
+
+
+            };
+
+
+
+            var productList = GenerateData(1150, products);
+
+            AddData(productList.ToArray());
+
+            var client = ObterCliente();
+
+
+
+
+            var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
+            q2 = q2.Where(a => a.Test.Category.CategoryType.Contains("BAC") || a.Test.MarketId == 2);
+
+
+            var q2res = q2.ToList();
+            Assert.NotEmpty(q2res);
+
+            var ac = productList.Count(a => a.Test.Category.CategoryType.Contains("BAC") || a.Test.MarketId == 2);
+            var bc = productList.Where(a => a.Test.Category.CategoryType.Contains("BAC") || a.Test.MarketId == 2);
+            Assert.True(ac == q2res.Count);
+            Assert.True(q2res.All(a => a.Test.Category.CategoryType.Contains("BAC") || a.Test.MarketId == 2));
+        }
         [Fact]
         public void NestedCount()
         {
@@ -287,6 +345,15 @@ namespace ElasticsearchQuery.Tests
             Assert.True(acer == q2res.Count);
             Assert.True(q2res.All(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON") || a.Test.MemberName == "JOHN"));
 
+            var query3 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
+            query3 = query3.Where(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType.Contains("BAC")) || a.Test.MemberName == "JOHN");
+            q2res = query3.ToList();
+            Assert.NotEmpty(q2res);
+
+            var acere = productList.Count(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType.Contains("BAC")) || a.Test.MemberName == "JOHN");
+            var bcere = productList.Where(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType.Contains("BAC")) || a.Test.MemberName == "JOHN");
+            Assert.True(acere == q2res.Count);
+            Assert.True(q2res.All(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType.Contains("BAC")) || a.Test.MemberName == "JOHN"));
 
         }
 

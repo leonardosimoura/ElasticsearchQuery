@@ -179,21 +179,30 @@ namespace ElasticLinq.Request.Formatters
             var unformattedValue = criteria.Value; // We do not reformat query_string
 
             JObject queryStringCriteria;
-            if (criteria.Nested)
-            {
-                queryStringCriteria = new JObject(new JProperty("nested", new JObject(new JProperty("path", criteria.Path), new JProperty("query", unformattedValue))));
-            }
-            else
-            {
+            //if (criteria.Nested)
+            //{
+            //    queryStringCriteria = new JObject(new JProperty("nested", new JObject(new JProperty("path", criteria.Path), new JProperty("query", unformattedValue))));
+            //}
+            //else
+            //{
                 queryStringCriteria = new JObject(new JProperty("query", unformattedValue));
-            }
+            
           
 
             if (criteria.Fields.Any())
                 queryStringCriteria.Add(new JProperty("fields", new JArray(criteria.Fields)));
 
 
-            return new JObject(new JProperty(criteria.Name, queryStringCriteria));
+            if (criteria.Nested)
+            {
+                return new JObject(new JProperty("nested", new JObject(new JProperty("path", criteria.Path), new JProperty("query",
+                    new JObject(new JProperty(criteria.Name, queryStringCriteria))))));
+            }
+            else
+            {
+
+                return new JObject(new JProperty(criteria.Name, queryStringCriteria));
+            }
         }
 
         JObject Build(RangeCriteria criteria)
