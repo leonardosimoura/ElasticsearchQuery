@@ -2,16 +2,16 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageReleaseNotes>See https://github.com/leonardosimoura/ElasticSearchQuery</PackageReleaseNotes>
+    <PackageReleaseNotes>See https://github.com/mbracken02/ElasticsearchQuery</PackageReleaseNotes>
     <PackageIconeUrl>https://github.com/leonardosimoura/ElasticSearchQuery/blob/master/nuget-icon.png</PackageIconeUrl>
     <PackageLicenseUrl>https://github.com/leonardosimoura/ElasticSearchQuery/blob/master/LICENSE</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/leonardosimoura/ElasticSearchQuery</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/leonardosimoura/ElasticSearchQuery.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/mbracken02/ElasticsearchQuery</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mbracken02/ElasticsearchQuery.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Title>ElasticsearchQuery</Title>
     <Description>Simple IQueryable implementation for Elasticsearch</Description>
     <Authors>Leonardo Silvio de Moura</Authors>
-    <Version>0.1.9</Version>
+    <Version>1.0.0</Version>
     <UpdateVersionProperties>true</UpdateVersionProperties>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
