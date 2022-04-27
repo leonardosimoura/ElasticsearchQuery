@@ -66,13 +66,19 @@ namespace ElasticsearchQuery.Tests
 
         private IEnumerable<ProductTest> GenerateData(int size, params ProductTest[] additionalData)
         {
-           
+            var cat = new Faker<Category>("pt_BR")
+                 .RuleFor(o => o.Id, f => f.Random.Int())
+                 .RuleFor(o => o.CategoryId, f => f.Random.Int() % 2 == 0 ? 2 : 3)
+                 .RuleFor(o => o.CategoryType, f => f.Random.Int() % 2 == 0 ? "BACON" : "OTHER")
+                 .RuleFor(o => o.Name, f => f.Random.Int() % 2 == 0 ? "F" : "G");
+
             var testType = new Faker<TestType>("pt_BR")
                 .RuleFor(o => o.MarketId, f => f.Random.Int(1, 10))
                 .RuleFor(o => o.Id, f => f.Random.Int())
                 .RuleFor(o => o.MemberName, f => (f.Random.Int() % 2 == 0 ? "BOB" : "STEVE"))
                 .RuleFor(o => o.ProductType, f=> (f.Random.Int() % 2 == 0 ? "GOOD" : "BAD"))
-                .RuleFor(o => o.VegetableId, f=> f.Random.Int(1,5));
+                .RuleFor(o => o.VegetableId, f=> f.Random.Int(1,5))
+                .RuleFor(o => o.Category, f => cat);
 
             
 
@@ -148,15 +154,74 @@ namespace ElasticsearchQuery.Tests
             Assert.True(result.All(a => products.Any(p => p.ProductId == a.ProductId)));
         }
 
+        [Fact]
+        public void NestedCount()
+        {
+            var cat1 = new Category(1, 2, "BACON", "F");
+            var cat2 = new Category(2, 3, "OTHER", "G");
+
+
+            var t = new TestType(1, 1, "JOHN");
+            t.Category = cat1;
+            var c = new TestType(1, 1, "BOB");
+            c.Category = cat1;
+            var se = new TestType(1, 2, "STEVE");
+            se.Category = cat2;
+            var be = new TestType(1, 3, "JAMES");
+
+            var p = new List<TestType>() { t, c, se };
+            var d = new List<TestType>() { t, c, se, be };
+
+            var products = new ProductTest[]
+            {
+                new ProductTest(Guid.NewGuid(), "Product A", 99,t),
+                new ProductTest(Guid.NewGuid(), "Product B", 150,t),
+                new ProductTest(Guid.NewGuid(), "Product C", 200,t ),
+                new ProductTest(Guid.NewGuid(), "Product D", 300, t),
+                new ProductTest(Guid.NewGuid(), "Product E", 300,c),
+                new ProductTest(Guid.NewGuid(), "Product F", 300, c),
+                new ProductTest(Guid.NewGuid(), "Product G", 300, se),
+                new ProductTest(Guid.NewGuid(), "Product H", 300, se),
+                new ProductTest(Guid.NewGuid(), "Product I", 300, se)
+
+
+
+            };
+
+
+
+            var productList = GenerateData(1150, products);
+
+            AddData(productList.ToArray());
+
+            var client = ObterCliente();
+
+
+            var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
+            var cCount = q2.Count(a => a.Test.MemberName == "JOHN" || a.Test.MarketId == 2);
+
+
+            
+
+            var ac = productList.Count(a => a.Test.MemberName == "JOHN" || a.Test.MarketId == 2);
+            
+            Assert.True(ac == cCount);
+           
+        }
       
         [Fact]
         public void CheckNested()
         {
+            var cat1 = new Category(1, 2, "BACON", "F");
+            var cat2 = new Category(2, 3, "OTHER", "G");
 
             
             var t = new TestType(1, 1, "JOHN");
+            t.Category = cat1;
             var c = new TestType(1, 1, "BOB");
+            c.Category = cat1;
             var se = new TestType(1, 2, "STEVE");
+            se.Category = cat2;
             var be = new TestType(1, 3, "JAMES");
 
             var p = new List<TestType>() { t, c, se };
@@ -174,110 +239,55 @@ namespace ElasticsearchQuery.Tests
                 new ProductTest(Guid.NewGuid(), "Product H", 300, se),
                 new ProductTest(Guid.NewGuid(), "Product I", 300, se)
 
-                // new ProductTest(Guid.NewGuid(), "Product A", 99,p),
-                //new ProductTest(Guid.NewGuid(), "Product B", 150,p),
-                //new ProductTest(Guid.NewGuid(), "Product C", 200,p ),
-                //new ProductTest(Guid.NewGuid(), "Product D", 300, p),
-                //new ProductTest(Guid.NewGuid(), "Product E", 300,p),
-                //new ProductTest(Guid.NewGuid(), "Product F", 300, p),
-                //new ProductTest(Guid.NewGuid(), "Product G", 300, p),
-                //new ProductTest(Guid.NewGuid(), "Product H", 300, p),
-                //new ProductTest(Guid.NewGuid(), "Product I", 300, d)
+             
 
             };
 
-            //AddData(products.ToArray());
-            //var connection = new ElasticConnection(new Uri("http://localhost:9200"), index: "producttest");
+            
 
             var productList = GenerateData(1150, products);
-            //AddData(products);
+           
             AddData(productList.ToArray());
             
             var client = ObterCliente();
-            Stopwatch sw = new Stopwatch();
-                sw.Start();
-            //var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
-
-
-            //query = query.Where(w => w.Test.MarketId == 1);
-            ////query = query.Where(e => e.Test.MarketId == 1 && e.Test.MemberName == "STEVE");
-
-
-            ////var bc = query.Expression;
-            //var result = query.ToList();
-            //sw.Stop();
-            //var timer = sw.ElapsedMilliseconds;
-
-            //Assert.NotEmpty(result);
-            //Assert.True(result.All(a => a.Test.MarketId == 1));
-            //sw.Reset();
-            //sw.Start();
-            //var q1 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-
-
-
-            //q1 = q1.Where(w => w.Test.MemberName == "BOB");
-
-
-            ////var bc = query.Expression;
-            //var res = q1.ToList();
-            //sw.Stop();
-            //var timer2 = sw.ElapsedMilliseconds;
-
-            //Assert.NotEmpty(res);
-            //Assert.True(res.All(a => a.Test.MemberName == "BOB"));
+          
+            
+         
 
             var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
-            q2 = q2.Where(a => a.Name == "Product A" || (a.Price > 250M && a.Name.Contains("Product")));
+            q2 = q2.Where(a => a.Test.MemberName == "JOHN" || a.Test.MarketId == 2);
 
 
             var q2res = q2.ToList();
             Assert.NotEmpty(q2res);
-            Assert.True(q2res.All(a => a.Name == "Product A" || (a.Price > 250M && a.Name.Contains("Product"))));
-
-            //var context = new ElasticContext(connection);
-
-            //var count1 = result.Count;
-            //var count2 = res.Count;
-
-            ////var productList = GenerateData(1000, products);
+           
+            var ac = productList.Count(a => a.Test.MemberName == "JOHN" || a.Test.MarketId == 2);
+            var bc = productList.Where(a => a.Test.MemberName == "JOHN" || a.Test.MarketId == 2);
+            Assert.True(ac == q2res.Count);
+            Assert.True(q2res.All(a => a.Test.MemberName == "JOHN" || a.Test.MarketId == 2));
 
 
+            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
+           query = query.Where(a => a.Test.Category.CategoryId == 2 || a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON" || a.Test.MemberName == "JOHN");
+            q2res = query.ToList();
+            Assert.NotEmpty(q2res);
 
-            //var q = context.Query<ProductTest>();
-            //q.Where(e => e.Name.Contains("Product"));
+            var ace = productList.Count(a => a.Test.Category.CategoryId == 2 || a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON" || a.Test.MemberName == "JOHN");
+            var bce = productList.Where(a => a.Test.Category.CategoryId == 2 || a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON" || a.Test.MemberName == "JOHN");
+            Assert.True(ace == q2res.Count);
+            Assert.True(q2res.All(a => a.Test.Category.CategoryId == 2 || a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON" || a.Test.MemberName == "JOHN"));
 
+            var query2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
+            query2 = query2.Where(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON") || a.Test.MemberName == "JOHN");
+            q2res = query2.ToList();
+            Assert.NotEmpty(q2res);
 
-            //var result = q.ToList();
-
-            //var client = ObterCliente();
-
-
-
-            ////Assert.NotEmpty(result);
-            //////Assert.True(result.All(a => a.Test.MarketId == 1));
-            ////Assert.True(result.Select(x => x.Test.MemberName).Distinct().Count() > 1);
-            //ParameterExpression pe1 = Expression.Parameter(typeof(ProductTest), "e");
-            //Expression left1 = Expression.Property(pe1, typeof(ProductTest).GetProperty("Test"));
-            //left1 = Expression.Property(left1, typeof(TestType).GetProperty("MarketId"));
-            //Expression right1 = Expression.Constant(1, typeof(int));
-            //Expression expression1 = Expression.Equal(left1, right1);
-            //var lambda2 = Expression.Lambda<Func<ProductTest, bool>>(expression1, pe1).Compile();
-
+            var acer = productList.Count(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON") || a.Test.MemberName == "JOHN");
+            var bcer = productList.Where(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON") || a.Test.MemberName == "JOHN");
+            Assert.True(acer == q2res.Count);
+            Assert.True(q2res.All(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON") || a.Test.MemberName == "JOHN"));
 
 
-            //var q1 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-            //q1 = q1.Where(lambda2).AsQueryable();
-            //var r = q1.ToList();
-            //Assert.NotEmpty(r);
-            //Assert.True(r.All(a => a.Test.MarketId == 1));
-
-
-            //var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client);
-            //q2 = q2.Where(e => e.Test.MarketId == 1);
-            //var r3 = q2.ToList();
-            //Assert.NotEmpty(r3);
-            //Assert.True(r3.All(a => a.Test.MarketId == 1));
         }
 
         [Fact]
@@ -1032,5 +1042,22 @@ namespace ElasticsearchQuery.Tests
         public string MemberName { get; set; }
         public string ProductType { get; set; }
         public int VegetableId { get; set; }
+        public Category Category { get; set; }
+    }
+    public class Category
+    {
+        public Category() { }
+        public Category(int id, int cid, string type, string name)
+        {
+            Id = id;
+            CategoryId = cid;
+            CategoryType = type;
+            Name = name;
+        }
+        public int CategoryId { get; set; }
+        public int Id { get; set; }
+        public string CategoryType { get; set; }
+        public string Name { get; set; }
+
     }
 }
