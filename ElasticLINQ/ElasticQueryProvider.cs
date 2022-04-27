@@ -208,7 +208,7 @@ namespace ElasticLinq
                     formatter.Fill();
 
 
-                    var t = _elasticClient.LowLevel.Search<SearchResponse<object>>("producttest", formatter.FullQuery.ToString());
+                    var t = _elasticClient.LowLevel.Search<SearchResponse<object>>(formatter.FullQuery.ToString());
                     //dynamic request = generic.Invoke(_elasticClient, new object[] { translation.SearchRequest });
                     //var t = (Task<object>)generic.Invoke(_elasticClient, new object[] { searchRequest });
                     
