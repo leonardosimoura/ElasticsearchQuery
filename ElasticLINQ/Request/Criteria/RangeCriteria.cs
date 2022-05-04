@@ -59,7 +59,7 @@ namespace ElasticLinq.Request.Criteria
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"range: {Field}({string.Join(",", Specifications.Select(s => s.ToString()))})";
+            return $"range: {Field}: {{{string.Join(",", Specifications.Select(s => s.ToString()))}}}";
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace ElasticLinq.Request.Criteria
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"{Comparison} {Value}";
+            return $"{Name} : {Value}";
         }
     }
 }

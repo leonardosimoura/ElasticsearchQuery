@@ -24,7 +24,9 @@ namespace ElasticsearchQuery.Tests
             var settings = new ConnectionSettings(node);
             settings.ThrowExceptions();
             settings.EnableDebugMode();
+            settings.DefaultIndex("producttestm");
             settings.DefaultMappingFor<ProductTest>(m => m.IdProperty(p => p.ProductId));
+            settings.DefaultMappingFor<ProductTestMultiple>(m => m.IdProperty(p => p.ProductId));
             var client = new ElasticClient(settings);
             return client;
         }
@@ -49,6 +51,19 @@ namespace ElasticsearchQuery.Tests
                                   )));
         }
 
+        private void CreateNewTest(IElasticClient client, string indexName = "producttestm", string indexType = "producttestm")
+        {
+            client.Indices.Create(indexName, cr =>
+                       cr.Map<ProductTestMultiple>(m =>
+                             m.AutoMap()
+                             .Properties(ps => ps
+                                 .Text(p => p.Name(na => na.ProductId).Analyzer("keyword").Fielddata(true))
+                                 .Text(p => p.Name(na => na.Name).Analyzer("keyword").Fielddata(true))
+                                 .Text(p => p.Name(na => na.NameAsText).Analyzer("standard").Fielddata(true))
+                                 .Number(p => p.Name(na => na.Price).Type(NumberType.Double))
+                                 )));
+        }
+
         private void AddData(params ProductTest[] data)
         {
             var client = ObterCliente();
@@ -62,6 +77,21 @@ namespace ElasticsearchQuery.Tests
             client.IndexMany(data, "producttest");
 
             client.Indices.Refresh("producttest");
+        }
+
+        private void AddData(params ProductTestMultiple[] data)
+        {
+            var client = ObterCliente();
+
+            if (client.Indices.Exists(Indices.Index("producttestm")).Exists)
+                client.DeleteByQuery<ProductTestMultiple>(a => a.Query(q => q.MatchAll())
+                    .Index("producttestm"));
+            else
+                CreateNewTest(client, "producttestm", "producttestm");
+
+            client.IndexMany(data, "producttestm");
+
+            client.Indices.Refresh("producttestm");
         }
 
         private IEnumerable<ProductTest> GenerateData(int size, params ProductTest[] additionalData)
@@ -266,7 +296,100 @@ namespace ElasticsearchQuery.Tests
             Assert.True(ac == cCount);
            
         }
-      
+
+   
+
+        [Fact]
+        public void NestedList()
+        {
+            var cat1 = new Category(1, 2, "BACON", "F");
+            var cat2 = new Category(2, 3, "OTHER", "G");
+
+
+            var t = new TestType(1, 1, "JOHN");
+            t.Category = cat1;
+            var c = new TestType(1, 1, "BOB");
+            c.Category = cat1;
+            var se = new TestType(1, 2, "STEVE");
+            se.Category = cat2;
+            var be = new TestType(1, 3, "JAMES");
+            be.Category = cat1;
+
+            var p = new List<TestType>() { t, c, se };
+            var d = new List<TestType>() { t, c, se, be };
+
+            var products = new ProductTestMultiple[]
+            {
+                new ProductTestMultiple(Guid.NewGuid(), "Product A", 99,p),
+                new ProductTestMultiple(Guid.NewGuid(), "Product B", 150,p),
+                new ProductTestMultiple(Guid.NewGuid(), "Product C", 200,d ),
+                new ProductTestMultiple(Guid.NewGuid(), "Product D", 300, p),
+                new ProductTestMultiple(Guid.NewGuid(), "Product E", 300,d),
+                new ProductTestMultiple(Guid.NewGuid(), "Product F", 300, d),
+                new ProductTestMultiple(Guid.NewGuid(), "Product G", 300, d),
+                new ProductTestMultiple(Guid.NewGuid(), "Product H", 300, d),
+                new ProductTestMultiple(Guid.NewGuid(), "Product I", 300, d)
+
+
+
+            };
+
+            var client = ObterCliente();
+
+            AddData(products.ToArray());
+
+
+            var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
+
+           
+
+            q2 = q2.Where(a => a.Tests.Any(e => e.MemberName == "JAMES"));
+            var q2res = q2.ToList();
+            
+            Assert.NotEmpty(q2res);
+
+            var ac = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES"));
+            
+            
+            Assert.True(ac == q2res.Count);
+            Assert.True(q2res.All(a => a.Tests.Any(e => e.MemberName == "JAMES")));
+
+
+            ///
+
+            var q1 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
+
+
+
+            q1 = q1.Where(a => a.Tests.Any(e => e.MemberName == "JAMES") && a.Price <= 200);
+            var q1res = q1.ToList();
+
+            Assert.NotEmpty(q1res);
+
+            var fullList1 = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES") && a.Price <= 200);
+           
+            Assert.True(fullList1 == q1res.Count);
+            Assert.True(q1res.All(a => a.Tests.Any(e => e.MemberName == "JAMES") && a.Price <= 200));
+            ////
+
+            //var q3 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
+
+
+
+            //q3 = q3.Where(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1));
+            //var q3res = q3.ToList();
+
+            //Assert.NotEmpty(q3res);
+
+            //var fullList = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2));
+            //var ef = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2));
+
+            //Assert.True(fullList == q3res.Count);
+            //Assert.True(q3res.All(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2)));
+
+
+        }
+
         [Fact]
         public void CheckNested()
         {
@@ -281,13 +404,14 @@ namespace ElasticsearchQuery.Tests
             var se = new TestType(1, 2, "STEVE");
             se.Category = cat2;
             var be = new TestType(1, 3, "JAMES");
+            be.Category = cat1;
 
             var p = new List<TestType>() { t, c, se };
             var d = new List<TestType>() { t, c, se, be };
             
             var products = new ProductTest[]
             {
-                new ProductTest(Guid.NewGuid(), "Product A", 99,t),
+                  new ProductTest(Guid.NewGuid(), "Product A", 99,t),
                 new ProductTest(Guid.NewGuid(), "Product B", 150,t),
                 new ProductTest(Guid.NewGuid(), "Product C", 200,t ),
                 new ProductTest(Guid.NewGuid(), "Product D", 300, t),
@@ -297,7 +421,7 @@ namespace ElasticsearchQuery.Tests
                 new ProductTest(Guid.NewGuid(), "Product H", 300, se),
                 new ProductTest(Guid.NewGuid(), "Product I", 300, se)
 
-             
+
 
             };
 
@@ -324,6 +448,8 @@ namespace ElasticsearchQuery.Tests
             Assert.True(ac == q2res.Count);
             Assert.True(q2res.All(a => a.Test.MemberName == "JOHN" || a.Test.MarketId == 2));
 
+            //-------------------------------------------------------------------------------
+
 
             var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
            query = query.Where(a => a.Test.Category.CategoryId == 2 || a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON" || a.Test.MemberName == "JOHN");
@@ -335,6 +461,8 @@ namespace ElasticsearchQuery.Tests
             Assert.True(ace == q2res.Count);
             Assert.True(q2res.All(a => a.Test.Category.CategoryId == 2 || a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON" || a.Test.MemberName == "JOHN"));
 
+            //-------------------------------------------------------------------------------
+
             var query2 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query2 = query2.Where(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON") || a.Test.MemberName == "JOHN");
             q2res = query2.ToList();
@@ -345,6 +473,8 @@ namespace ElasticsearchQuery.Tests
             Assert.True(acer == q2res.Count);
             Assert.True(q2res.All(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType == "BACON") || a.Test.MemberName == "JOHN"));
 
+            //-------------------------------------------------------------------------------
+
             var query3 = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
             query3 = query3.Where(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType.Contains("BAC")) || a.Test.MemberName == "JOHN");
             q2res = query3.ToList();
@@ -354,6 +484,8 @@ namespace ElasticsearchQuery.Tests
             var bcere = productList.Where(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType.Contains("BAC")) || a.Test.MemberName == "JOHN");
             Assert.True(acere == q2res.Count);
             Assert.True(q2res.All(a => a.Test.Category.CategoryId == 2 && (a.Test.MarketId == 2 || a.Test.Category.CategoryType.Contains("BAC")) || a.Test.MemberName == "JOHN"));
+
+            //-------------------------------------------------------------------------------
 
         }
 
@@ -1060,23 +1192,24 @@ namespace ElasticsearchQuery.Tests
         }
     }
 
-    [ElasticsearchType(Name= "producttest")]
-    public class ProductTest
+    [ElasticsearchType(Name = "producttestm")]
+    public class ProductTestMultiple
     {
-        public ProductTest()
+        public ProductTestMultiple()
         {
 
         }
-        public ProductTest(Guid productId, string name, decimal price,TestType t = null)
+        //public ProductTest(Guid productId, string name, decimal price,TestType t = null)
+        //{
+        public ProductTestMultiple(Guid productId, string name, decimal price, IList<TestType> t = null)
         {
-            //public ProductTest(Guid productId, string name, decimal price, IList<TestType> t = null)       {
             ProductId = productId;
             Name = name;
             NameAsText = name;
             Price = price;
-            //Tests = t;
-            Test = t;
-          
+            Tests = t;
+            //Test = t;
+
         }
 
         public Guid ProductId { get; set; }
@@ -1084,9 +1217,41 @@ namespace ElasticsearchQuery.Tests
         public string NameAsText { get; set; }
         public string Institution { get; set; }
         public decimal Price { get; set; }
-       
+
+        [Nested]
+        public IList<TestType> Tests { get; set; }
+
         //[Nested]
-        //public IList<TestType> Tests { get; set; }
+        //public TestType Test { get; set; }
+    }
+
+
+    [ElasticsearchType(Name= "producttest")]
+    public class ProductTest
+    {
+        public ProductTest()
+        {
+
+        }
+        public ProductTest(Guid productId, string name, decimal price, TestType t = null)
+        {
+
+            ProductId = productId;
+            Name = name;
+            NameAsText = name;
+            Price = price;
+
+            Test = t;
+
+        }
+
+        public Guid ProductId { get; set; }
+        public string Name { get; set; }
+        public string NameAsText { get; set; }
+        public string Institution { get; set; }
+        public decimal Price { get; set; }
+
+
 
         [Nested]
         public TestType Test { get; set; }

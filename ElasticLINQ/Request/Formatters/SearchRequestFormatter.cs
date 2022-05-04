@@ -144,7 +144,8 @@ namespace ElasticLinq.Request.Formatters
                 return Build((BoolCriteria)criteria);
             if (criteria is MatchCriteria)
                 return Build((MatchCriteria)criteria);
-
+            if (criteria is CollectionContainsCriteria)
+                return Build((CollectionContainsCriteria)criteria);
           
             // Base class formatters using name property
 
@@ -204,6 +205,43 @@ namespace ElasticLinq.Request.Formatters
                 return new JObject(new JProperty(criteria.Name, queryStringCriteria));
             }
         }
+
+        JObject Build(CollectionContainsCriteria criteria)
+        {
+            var innerQ = BuildLowerQuery(criteria);
+            
+            if (criteria.Nested)
+            {
+                return new JObject(new JProperty("nested", new JObject(new JProperty("path", criteria.Path), new JProperty("query", innerQ))));
+            }
+            else
+            {
+              
+                return new JObject(new JProperty("query", innerQ));
+            }
+        }
+        JObject BuildLowerQuery(CollectionContainsCriteria criteria)
+        {
+            var query = new JObject();
+            if (criteria.ComparisonTypeValue == CollectionContainsCriteria.ComparisonType.Match)
+            {
+                return new JObject(new JProperty("match", new JObject(new JProperty(criteria.Field, new JObject(new JProperty("query", criteria.Value.ToString()))))));
+            }
+            if (criteria.ComparisonTypeValue == CollectionContainsCriteria.ComparisonType.Term)
+            {
+                return  new JObject(new JProperty("term", new JObject(new JProperty(criteria.Field, new JObject(new JProperty("value", criteria.Value.ToString()))))));
+            }
+            if (criteria.ComparisonTypeValue == CollectionContainsCriteria.ComparisonType.LT ||
+                criteria.ComparisonTypeValue == CollectionContainsCriteria.ComparisonType.LTE ||
+                criteria.ComparisonTypeValue == CollectionContainsCriteria.ComparisonType.GT ||
+                criteria.ComparisonTypeValue == CollectionContainsCriteria.ComparisonType.GTE
+             )
+            {
+                return  new JObject(new JProperty("range", new JObject(criteria.Field, new JObject(new JProperty(criteria.CompareValue, criteria.Value))))); 
+            }
+            return null;
+        }
+
 
         JObject Build(RangeCriteria criteria)
         {

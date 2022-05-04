@@ -10,6 +10,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
+using static ElasticLinq.Request.Criteria.CollectionContainsCriteria;
 
 namespace ElasticLinq.Request.Visitors
 {
@@ -100,9 +102,17 @@ namespace ElasticLinq.Request.Visitors
             switch (m.Method.Name)
             {
                 case "Contains":
+                
                     if (m.Arguments.Count == 2)
                         return VisitEnumerableContainsMethodCall(m.Arguments[0], m.Arguments[1]);
                     break;
+                case "Any":
+                    if (m.Arguments.Count == 2)
+                    {
+                        return VisitEnumerableAnyMethodCall(m.Arguments[0], m.Arguments[1]);
+                    }
+                    break;
+
             }
 
             throw new NotSupportedException($"Enumerable.{m.Method.Name} method is not supported");
@@ -204,7 +214,7 @@ namespace ElasticLinq.Request.Visitors
 
         protected Expression BooleanMemberAccessBecomesEquals(Expression e)
         {
-            e = Visit(e);
+           e = Visit(e);
 
             var c = e as ConstantExpression;
             if (c?.Value != null)
@@ -248,6 +258,240 @@ namespace ElasticLinq.Request.Visitors
             }
 
             throw new NotSupportedException("ElasticMethods.Regexp must take a member for field and a constant for startsWith");
+        }
+        Expression VisitEnumerableAnyMethodCall(Expression source, Expression match)
+        {
+            var x = (MemberExpression)source;
+            Expression toMatch = match;
+            bool toContinue = true;
+            int maxL = 5;
+            int c = 0;
+            while (toContinue)
+            {
+                try
+                {
+                    var matched = Visit(toMatch);
+                    toMatch = matched;
+
+                    toContinue = !(toMatch is ConstantExpression);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                finally
+                {
+                    c++;
+                }
+                if (c >= maxL)
+                {
+                    toContinue = false;
+                }
+
+            }
+
+            if (source is ConstantExpression && toMatch is MemberExpression)
+            {
+                var memberExpression = (MemberExpression)toMatch;
+                var field = Mapping.GetFieldName(SourceType, memberExpression);
+                var containsSource = ((IEnumerable)((ConstantExpression)source).Value);
+
+                // If criteria contains a null create an Or criteria with Terms on one
+                // side and Missing on the other.
+                var values = containsSource.Cast<object>().Distinct().ToList();
+                var nonNullValues = values.Where(v => v != null).ToList();
+
+                ICriteria criteria = TermsCriteria.Build(field, memberExpression.Member, nonNullValues);
+                if (values.Count != nonNullValues.Count)
+                    criteria = OrCriteria.Combine(criteria, new MissingCriteria(field));
+
+                return new CriteriaExpression(criteria);
+            }
+
+            // Where(x => x.SomeList.Contains(constantValue))
+            if (source is MemberExpression && toMatch is ConstantExpression)
+            {
+                var memberExpression = (MemberExpression)source;
+                var field = Mapping.GetFieldName(SourceType, memberExpression);
+                var value = ((ConstantExpression)toMatch).Value;
+                return new CriteriaExpression(TermsCriteria.Build(field, memberExpression.Member, value));
+            }
+
+            if (source is MemberExpression && toMatch is LambdaExpression)
+            {
+                var memberExpression = (MemberExpression)source;
+                string propString;
+                object val;
+
+
+                string cOut;
+                bool parsed = ParseLambdaExpression((MemberExpression)source, (LambdaExpression)toMatch, out propString, out val, out cOut);
+                if (!parsed)
+                {
+                    throw new NotSupportedException($"Unable to parse Lambda Expression {toMatch.ToString()}");
+
+                }
+                
+                
+                
+                var field = Mapping.GetFieldName(SourceType, memberExpression);
+                propString = propString.Insert(0, $"{field}.");
+               
+                var typer = FindFinalType(SourceType, propString, val);
+                ComparisonType compType = TranslateComparisonType(cOut, typer);
+                string nest = null;
+                var isNested = FindNestedProperty(SourceType, propString, out nest);
+                
+                return new CriteriaExpression(new CollectionContainsCriteria(propString, typer, val, compType, compV: cOut, pathName: nest, isNested: isNested));
+
+                
+            }
+
+            throw new NotSupportedException(source is MemberExpression
+                ? $"Match '{match}' in Contains operation must be a constant"
+                : $"Unknown source '{source}' for Contains operation");
+
+        }
+
+      private ComparisonType TranslateComparisonType(string input, Type outputType)
+        {
+            string inp = input.ToLower();
+            switch (inp)
+            {
+                case "term":
+                    return ComparisonType.Term;
+                case "match":
+                    return ComparisonType.Match;
+                case "lt":
+                    return ComparisonType.LT;
+                case "lte":
+                    return ComparisonType.LTE;
+                case "gt":
+                    return ComparisonType.GT;
+                case "gte":
+                    return ComparisonType.GTE;
+                default:
+                    return ComparisonType.NOT;
+
+                   
+                   
+            }
+
+        }
+
+        
+
+        public Type FindFinalType(Type type, string propertyName, object value)
+        {
+   
+            var param = Expression.Parameter(type, "x");
+
+           
+            Expression body = param;
+            Type outputType = SourceType;
+            foreach (var member in propertyName.Split('.'))
+            {
+                if (IsGenericList(body.Type))
+                {
+                    var innerType = body.Type.GetGenericArguments()[0];
+
+                    var innerP = Expression.Parameter(innerType, "it");
+
+
+                    var pr = innerType.GetProperty(member, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+                    outputType = pr.PropertyType;
+                    body = Expression.PropertyOrField(innerP, member);
+
+
+                }
+                else
+                {
+
+                    outputType = body.Type.GetProperty(member, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance).PropertyType;
+                    body = Expression.PropertyOrField(body, member);
+                    
+                }
+            }
+            return outputType;
+        }
+
+        public bool IsGenericList(Type type)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException("type");
+            }
+            foreach (Type @interface in type.GetInterfaces())
+            {
+                if (@interface.IsGenericType)
+                {
+                    if (@interface.GetGenericTypeDefinition() == typeof(ICollection<>))
+                    {
+                        // if needed, you can also return the type used as generic argument
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+
+        private int FindLowestIndexOf(string toCheck, char[] charsToCheck)
+        {
+            int lowestNonZero = int.MaxValue;
+            foreach (var c in charsToCheck)
+            {
+                int newV = toCheck.IndexOf(c);
+                if (newV < lowestNonZero && newV >= 0)
+                {
+                    lowestNonZero = newV;
+
+                }
+            }
+            return lowestNonZero;
+
+        }
+        bool ParseLambdaExpression(MemberExpression source, LambdaExpression expression, out string propertyString, out object value, out string comparison)
+        {
+            value = null;
+            propertyString = null;
+            comparison = null;
+            //{e => match memberName: {query : JAMES}}
+            //{e => range: marketId: {gte : 2}}
+            var asString = expression.ToString();
+            int fi = asString.IndexOf('>');
+            if (fi <= 0)
+            {
+                throw new NotSupportedException($"Lambda Expression: {expression.ToString()} could not be parsed");
+            }
+            var clipped = asString.Substring(fi + 1).Trim();
+            var firstActualV = FindLowestIndexOf(clipped, new char[] { ' ', ':' });
+            comparison = clipped.Substring(0, firstActualV).Trim();
+           
+            var firstSpaceInt = clipped.IndexOf(' ');
+            var propertyName = clipped.Substring(firstSpaceInt + 1).Trim();
+            var firstSpace = FindLowestIndexOf(propertyName, new char[] { '(', ' ', ':' });
+            var firstBracket = propertyName.IndexOf('{');
+            var innerWordString = propertyName.Substring(firstBracket + 1).Trim();
+            var length = FindLowestIndexOf(innerWordString, new char[] { ' ', ':' });
+            if (comparison == "range")
+            {
+                comparison = innerWordString.Substring(0, length);
+            }
+
+            var actualPropertyname = propertyName.Substring(0, firstSpace);
+            actualPropertyname = actualPropertyname.Replace(':', ' ').Trim();
+
+            var actualValue = propertyName.Substring(propertyName.LastIndexOf(':') + 1);
+
+           
+            actualValue = actualValue.Trim().Replace('}', ' ').Trim();
+            value = actualValue;
+            //var prevExpression = source.Update()
+            propertyString = actualPropertyname;
+
+            return true;
+            
         }
 
         Expression VisitEnumerableContainsMethodCall(Expression source, Expression match)
@@ -296,7 +540,7 @@ namespace ElasticLinq.Request.Visitors
             {
                 var memberExpression = (MemberExpression)source;
                 string nest = null;
-                var isNested = FindNestedProperty(SourceType, memberExpression, out nest);
+                var isNested = FindNestedProperty(SourceType, memberExpression.ToString(), out nest);
 
                 var field = Mapping.GetFieldName(SourceType, (MemberExpression)source);
                 var value = ((ConstantExpression)matched).Value;
@@ -335,7 +579,7 @@ namespace ElasticLinq.Request.Visitors
         {
             var cm = ConstantMemberPair.Create(left, right);
             string nest = null;
-            var isNested = FindNestedProperty(SourceType, cm.MemberExpression, out nest);
+            var isNested = FindNestedProperty(SourceType, cm.MemberExpression.ToString(), out nest);
             if (cm != null)
             {
                 var values = ((IEnumerable)cm.ConstantExpression.Value).Cast<object>().ToArray();
@@ -351,7 +595,7 @@ namespace ElasticLinq.Request.Visitors
 
             var value = cm.ConstantExpression.Value ?? false;
             string nest = null;
-            var isNested = FindNestedProperty(SourceType, cm.MemberExpression, out nest);
+            var isNested = FindNestedProperty(SourceType, cm.MemberExpression.ToString(), out nest);
 
             if (value.Equals(positiveTest))
                 return new CriteriaExpression(new ExistsCriteria(fieldName, nest, isNested));
@@ -362,17 +606,18 @@ namespace ElasticLinq.Request.Visitors
             throw new NotSupportedException("A null test Expression must have a member being compared to a bool or null");
         }
 
-        private bool FindNestedProperty(Type baseType, MemberExpression expression, out string pathName)
+        
+        private bool FindNestedProperty(Type baseType, string expression, out string pathName)
         {
             Type iterType = baseType;
             pathName = null;
-            var listVariables = expression.ToString().Split('.');
+            var listVariables = expression.Split('.');
             bool foundNested = false;
             bool firstT = false;
             foreach (var variable in listVariables)
             {
                 
-                var propL = iterType.GetProperty(variable);
+                var propL = iterType.GetProperty(variable, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
                 if (propL != null)
                 {
                     if (Attribute.IsDefined(propL, typeof(NestedAttribute)))
@@ -392,7 +637,8 @@ namespace ElasticLinq.Request.Visitors
                         continue;
                     }
                     
-                    var newType = iterType.GetProperty(variable);
+                    var newType = iterType.GetProperty(variable, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+                    if (newType != null)
                     iterType = newType.PropertyType;
 
 
@@ -416,7 +662,7 @@ namespace ElasticLinq.Request.Visitors
             var cm = ConstantMemberPair.Create(left, right);
             bool isText = cm.MemberExpression.Type == typeof(string);
             string nest = null;
-            var isNested = FindNestedProperty(SourceType, cm.MemberExpression, out nest);
+            var isNested = FindNestedProperty(SourceType, cm.MemberExpression.ToString(), out nest);
             CriteriaExpression cExpr;
             if (isText)
             {
@@ -474,7 +720,7 @@ namespace ElasticLinq.Request.Visitors
                 throw new NotSupportedException("A not-equal expression must be between a constant and a member");
 
             string nest = null;
-            var isNested = FindNestedProperty(SourceType, cm.MemberExpression, out nest);
+            var isNested = FindNestedProperty(SourceType, cm.MemberExpression.ToString(), out nest);
             return cm.IsNullTest
                 ? CreateExists(cm, false)
                 : new CriteriaExpression(NotCriteria.Create(new TermCriteria(Mapping.GetFieldName(SourceType, cm.MemberExpression), cm.MemberExpression.Member, cm.ConstantExpression.Value, pathName: nest, isNested: isNested)));
@@ -493,7 +739,7 @@ namespace ElasticLinq.Request.Visitors
 
             var field = Mapping.GetFieldName(SourceType, cm.MemberExpression);
             string nest = null;
-            var isNested = FindNestedProperty(SourceType, cm.MemberExpression, out nest);
+            var isNested = FindNestedProperty(SourceType, cm.MemberExpression.ToString(), out nest);
             return new CriteriaExpression(new RangeCriteria(field, cm.MemberExpression.Member, rangeComparison, cm.ConstantExpression.Value, pathName: nest, isNested: isNested));
         }
 

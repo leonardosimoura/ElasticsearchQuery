@@ -52,7 +52,7 @@ namespace ElasticLinq.Request.Criteria
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"term {Field} {Value}";
+            return $"term {Field} : {Value}";
         }
     }
 }

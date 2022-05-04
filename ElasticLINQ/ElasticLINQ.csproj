@@ -76,6 +76,7 @@
     <Compile Include="Request\Criteria\AndCriteria.cs" />
     <Compile Include="Request\Criteria\CompoundCriteria.cs" />
     <Compile Include="Request\Criteria\CriteriaWrapper.cs" />
+    <Compile Include="Request\Criteria\CollectionContainsCriteria.cs" />
     <Compile Include="Request\Criteria\MatchCriteria.cs" />
     <Compile Include="Request\Criteria\QueryCriteriaRewriter.cs" />
     <Compile Include="Request\Criteria\ConstantCriteriaFilterReducer.cs" />
