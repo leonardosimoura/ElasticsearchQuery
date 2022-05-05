@@ -322,7 +322,7 @@ namespace ElasticLinq.Request.Visitors
                 var memberExpression = (MemberExpression)source;
                 string propString;
                 object val;
-
+                var lambda = (LambdaExpression)match.GetLambda();
 
                 string cOut;
                 bool parsed = ParseLambdaExpression((MemberExpression)source, (LambdaExpression)toMatch, out propString, out val, out cOut);
@@ -336,13 +336,18 @@ namespace ElasticLinq.Request.Visitors
                 
                 var field = Mapping.GetFieldName(SourceType, memberExpression);
                 propString = propString.Insert(0, $"{field}.");
-               
-                var typer = FindFinalType(SourceType, propString, val);
-                ComparisonType compType = TranslateComparisonType(cOut, typer);
+
+                //var typer = FindFinalType(SourceType, propString, val);
+                //ComparisonType compType = TranslateComparisonType(cOut, typer);
+
                 string nest = null;
                 var isNested = FindNestedProperty(SourceType, propString, out nest);
+                var exp = BooleanMemberAccessBecomesEquals(lambda.Body) as CriteriaExpression;
+
+
+                return new CriteriaExpression(new CollectionCompoundCriteria(nest, new[] { exp.Criteria }, pathName: nest, isNested: isNested)); 
                 
-                return new CriteriaExpression(new CollectionContainsCriteria(propString, typer, val, compType, compV: cOut, pathName: nest, isNested: isNested));
+                //return new CriteriaExpression(new CollectionContainsCriteria(propString, typer, val, compType, compV: cOut, pathName: nest, isNested: isNested));
 
                 
             }
@@ -372,9 +377,7 @@ namespace ElasticLinq.Request.Visitors
                     return ComparisonType.GTE;
                 default:
                     return ComparisonType.NOT;
-
-                   
-                   
+           
             }
 
         }

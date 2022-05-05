@@ -74,6 +74,7 @@
     <Compile Include="NotAnalyzedAttribute.cs" />
     <Compile Include="Request\Criteria\BoolCriteria.cs" />
     <Compile Include="Request\Criteria\AndCriteria.cs" />
+    <Compile Include="Request\Criteria\CollectionCompoundCriteria.cs" />
     <Compile Include="Request\Criteria\CompoundCriteria.cs" />
     <Compile Include="Request\Criteria\CriteriaWrapper.cs" />
     <Compile Include="Request\Criteria\CollectionContainsCriteria.cs" />

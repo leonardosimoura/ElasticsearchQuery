@@ -146,7 +146,8 @@ namespace ElasticLinq.Request.Formatters
                 return Build((MatchCriteria)criteria);
             if (criteria is CollectionContainsCriteria)
                 return Build((CollectionContainsCriteria)criteria);
-          
+            if (criteria is CollectionCompoundCriteria)
+                return Build((CollectionCompoundCriteria)criteria);
             // Base class formatters using name property
 
             if (criteria is SingleFieldCriteria)
@@ -206,6 +207,13 @@ namespace ElasticLinq.Request.Formatters
             }
         }
 
+        JObject Build(CollectionCompoundCriteria criteria)
+        {
+            // A compound criteria with one item can be collapsed
+            return criteria.Criteria.Count == 1
+                ? Build(criteria.Criteria.First())
+                : new JObject(new JProperty(criteria.Name, new JArray(criteria.Criteria.Select(Build).ToList())));
+        }
         JObject Build(CollectionContainsCriteria criteria)
         {
             var innerQ = BuildLowerQuery(criteria);
