@@ -55,13 +55,25 @@ namespace ElasticLinq.Request.Formatters
         {
             var root = new JObject();
 
-           
+            if (searchRequest.Fields.Any())
+                root.Add("_source", new JArray(searchRequest.Fields));
+
+            if (searchRequest.MinScore.HasValue)
+                root.Add("min_score", searchRequest.MinScore.Value);
 
             var queryRoot = root;
-            
 
+            if (searchRequest.Query != null)
+                queryRoot.Add("query", Build(QueryCriteriaRewriter.Compensate(searchRequest.Query)));
 
+            if (searchRequest.SortOptions.Any())
+                root.Add("sort", Build(searchRequest.SortOptions));
 
+            if (searchRequest.From > 0)
+                root.Add("from", searchRequest.From);
+
+            if (searchRequest.Highlight != null)
+                root.Add("highlight", Build(searchRequest.Highlight));
 
 
             long? size = searchRequest.Size ?? 10000L;
@@ -77,13 +89,31 @@ namespace ElasticLinq.Request.Formatters
         public void Fill()
         {
             var root = new JObject();
+            if (searchRequest.Fields.Any())
+                root.Add("_source", new JArray(searchRequest.Fields));
+
+            if (searchRequest.MinScore.HasValue)
+                root.Add("min_score", searchRequest.MinScore.Value);
+
             var queryRoot = root;
+
+          
+
+            if (searchRequest.SortOptions.Any())
+                root.Add("sort", Build(searchRequest.SortOptions));
+
+            if (searchRequest.From > 0)
+                root.Add("from", searchRequest.From);
+
+            if (searchRequest.Highlight != null)
+                root.Add("highlight", Build(searchRequest.Highlight));
+            long? size = searchRequest.Size ?? 10000L;
+            if (size.HasValue)
+                queryRoot.Add("size", size.Value);
 
             if (searchRequest.Query != null)
             {
-                long? size = searchRequest.Size ?? 10000L;
-                if (size.HasValue)
-                    queryRoot.Add("size", size.Value);
+                
                 queryRoot.Add("query", Build(QueryCriteriaRewriter.Compensate(searchRequest.Query)));
                 
             }
