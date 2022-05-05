@@ -210,9 +210,34 @@ namespace ElasticLinq.Request.Formatters
         JObject Build(CollectionCompoundCriteria criteria)
         {
             // A compound criteria with one item can be collapsed
-            return criteria.Criteria.Count == 1
-                ? Build(criteria.Criteria.First())
-                : new JObject(new JProperty(criteria.Name, new JArray(criteria.Criteria.Select(Build).ToList())));
+            if (criteria.Criteria.Count == 1)
+            {
+                if (criteria.Nested)
+                {
+                    return new JObject(new JProperty("nested", new JObject(new JProperty("path", criteria.Path), new JProperty("query", Build(criteria.Criteria.First())))));
+                }
+                else
+                {
+                    return Build(criteria.Criteria.First());
+                }
+            }
+            else
+            {
+                if (criteria.Nested)
+                {
+                    return new JObject(new JProperty("nested", new JObject(new JProperty("path", criteria.Path),
+                        new JProperty("query", new JObject(new JProperty(criteria.Name, new JArray(criteria.Criteria.Select(Build).ToList())))))));
+
+                }
+                else
+                {
+                    return new JObject(new JProperty(criteria.Name, new JArray(criteria.Criteria.Select(Build).ToList())));
+                }
+            }
+
+            //return criteria.Criteria.Count == 1
+            //    ? Build(criteria.Criteria.First())
+            //    : new JObject(new JProperty(criteria.Name, new JArray(criteria.Criteria.Select(Build).ToList())));
         }
         JObject Build(CollectionContainsCriteria criteria)
         {

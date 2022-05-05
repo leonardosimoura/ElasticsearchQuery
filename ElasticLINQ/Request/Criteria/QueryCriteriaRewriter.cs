@@ -1,5 +1,6 @@
 ﻿// Licensed under the Apache 2.0 License. See LICENSE.txt in the project root for more information.
 
+using System;
 using System.Linq;
 
 namespace ElasticLinq.Request.Criteria
@@ -30,6 +31,8 @@ namespace ElasticLinq.Request.Criteria
 
             if (criteria is ConstantCriteria)
                 return Rewrite((ConstantCriteria)criteria);
+            if (criteria is CollectionCompoundCriteria)
+                return Rewrite((CollectionCompoundCriteria)criteria);
 
             return criteria;
         }
@@ -44,7 +47,7 @@ namespace ElasticLinq.Request.Criteria
             var mustNotCriteria = not.Criteria is OrCriteria
                 ? ((OrCriteria) not.Criteria).Criteria
                 : Enumerable.Repeat(not.Criteria, 1);
-            return new BoolCriteria(null, null, mustNotCriteria.Select(Compensate));
+            return new BoolCriteria(null, null, mustNotCriteria.Select(Compensate), not.Path, not.Nested);
         }
 
         /// <summary>
@@ -54,7 +57,7 @@ namespace ElasticLinq.Request.Criteria
         /// <returns><see cref="BoolCriteria" /> with the criteria from the Or mapped into Should.</returns>
         static BoolCriteria Rewrite(OrCriteria or)
         {
-            return new BoolCriteria(null, or.Criteria.Select(Compensate), null);
+            return new BoolCriteria(null, or.Criteria.Select(Compensate), null, or.Path, or.Nested);
         }
 
         /// <summary>
@@ -73,8 +76,8 @@ namespace ElasticLinq.Request.Criteria
             var must = and.Criteria.Except(mustNot).Except(shouldCriteria);
 
             return new BoolCriteria(must.Select(Compensate),
-                shouldCriteria,
-                mustNot.Select(c => c.Criteria).Select(Compensate));
+                            shouldCriteria,
+                            mustNot.Select(c => c.Criteria).Select(Compensate), and.Path, and.Nested);
         }
 
         /// <summary>
@@ -89,6 +92,127 @@ namespace ElasticLinq.Request.Criteria
         static ICriteria Rewrite(ConstantCriteria constant)
         {
             return constant == ConstantCriteria.True ? MatchAllCriteria.Instance : NotCriteria.Create(MatchAllCriteria.Instance);
+        }
+
+        static void UpdateCriteria(ICriteria criteria, string toInsertNest = null)
+        {
+            if (criteria is TermCriteria)
+            {
+                var tc = (TermCriteria)criteria;
+                if (!string.IsNullOrEmpty(toInsertNest))
+                    tc.Field = $"{toInsertNest}.{tc.Field}";
+
+            }
+            if (criteria is MatchCriteria)
+            {
+                var tc = (MatchCriteria)criteria;
+                if (!string.IsNullOrEmpty(toInsertNest))
+                    tc.Field = $"{toInsertNest}.{tc.Field}";
+            }
+            if (criteria is TermsCriteria)
+            {
+                var tc = (TermsCriteria)criteria;
+                if (!string.IsNullOrEmpty(toInsertNest))
+                    tc.Field = $"{toInsertNest}.{tc.Field}";
+            }
+            if (criteria is OrCriteria)
+            {
+                var tc = (OrCriteria)criteria;
+                foreach (var innerCriteria in tc.Criteria)
+                {
+                    UpdateCriteria(innerCriteria, toInsertNest);
+                }
+            }
+            if (criteria is AndCriteria)
+            {
+                var tc = (AndCriteria)criteria;
+                foreach (var innerCriteria in tc.Criteria)
+                {
+                    UpdateCriteria(innerCriteria, toInsertNest);
+                }
+            }
+           
+
+        }
+
+        static ICriteria Rewrite(CollectionCompoundCriteria and)
+        {
+            if (and.Criteria.Count > 1)
+            {
+                throw new Exception("CollectionCompoundCriteria contains more than 1 criteria");
+            }
+            if (and.Criteria.Count == 0)
+            {
+                throw new Exception("CollectionCompoundCriteria does not contain any criteria");
+                
+            }
+            var cm = and.Criteria.First();
+
+
+            if (cm is OrCriteria)
+            {
+                var tc = (OrCriteria)cm;
+                tc.Path = and.Path;
+                tc.Nested = and.Nested;
+
+                foreach (var innerCriteria in tc.Criteria)
+                {
+                    UpdateCriteria(innerCriteria, and.ToInsertField);
+                }
+                return Rewrite(tc);
+            }
+
+            if (cm is AndCriteria)
+            {
+                var tc = (AndCriteria)cm;
+                tc.Path = and.Path;
+                tc.Nested = and.Nested;
+
+                foreach (var innerCriteria in tc.Criteria)
+                {
+                    UpdateCriteria(innerCriteria, and.ToInsertField);
+                }
+                return Rewrite(tc);
+            }
+            if (cm is NotCriteria)
+            {
+                var tc = (NotCriteria)cm;
+                tc.Path = and.Path;
+                tc.Nested = and.Nested;
+                UpdateCriteria(tc, and.ToInsertField);
+
+
+                return Rewrite(tc);
+            }
+            else
+            {
+                UpdateCriteria(cm, and.ToInsertField);
+                if (cm is TermCriteria)
+                {
+                    var tc = (TermCriteria)cm;
+                    tc.Path = and.Path;
+                    tc.Nested = and.Nested;
+                    return tc;
+                }
+                if (cm is TermsCriteria)
+                {
+                    var tc = (TermsCriteria)cm;
+                    tc.Path = and.Path;
+                    tc.Nested = and.Nested;
+                    return tc;
+                }
+                if (cm is MatchCriteria)
+                {
+                    var tc = (MatchCriteria)cm;
+                    tc.Path = and.Path;
+                    tc.Nested = and.Nested;
+                    return tc;
+                }
+
+            }
+
+            return cm;
+
         }
     }
 }

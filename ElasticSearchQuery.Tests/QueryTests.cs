@@ -306,13 +306,13 @@ namespace ElasticsearchQuery.Tests
             var cat2 = new Category(2, 3, "OTHER", "G");
 
 
-            var t = new TestType(1, 1, "JOHN");
+            var t = new TestType(1, 1, "JOHN", 1);
             t.Category = cat1;
             var c = new TestType(1, 1, "BOB");
             c.Category = cat1;
             var se = new TestType(1, 2, "STEVE");
             se.Category = cat2;
-            var be = new TestType(1, 3, "JAMES");
+            var be = new TestType(1, 3, "JAMES", 1);
             be.Category = cat1;
 
             var p = new List<TestType>() { t, c, se };
@@ -338,24 +338,41 @@ namespace ElasticsearchQuery.Tests
 
             AddData(products.ToArray());
 
+            var q0 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
+
+
+            //q0 = q0.Where(a => a.Price == 200 && a.Name == "JOE");
+
+            q0 = q0.Where(a => a.Tests.Any(e => e.MemberName == "JAMES"));
+            var q0res = q0.ToList();
+
+            Assert.NotEmpty(q0res);
+
+            var q0ac = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES"));
+
+
+            Assert.True(q0ac == q0res.Count);
+            Assert.True(q0res.All(a => a.Tests.Any(e => e.MemberName == "JAMES")));
+
 
             var q2 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
 
-           
 
-            q2 = q2.Where(a => a.Tests.Any(e => e.MemberName == "JAMES"));
+            //q2 = q2.Where(a => a.Price == 200 && a.Name == "JOE");
+
+            q2 = q2.Where(a => a.Tests.Any(e => e.MemberName == "JAMES" || e.MarketId == 2));
             var q2res = q2.ToList();
-            
+
             Assert.NotEmpty(q2res);
 
-            var ac = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES"));
-            
-            
+            var ac = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" || e.MarketId == 2));
+
+
             Assert.True(ac == q2res.Count);
-            Assert.True(q2res.All(a => a.Tests.Any(e => e.MemberName == "JAMES")));
+            Assert.True(q2res.All(a => a.Tests.Any(e => e.MemberName == "JAMES" || e.MarketId == 2)));
 
 
-            ///
+            /////////////////////
 
             var q1 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
 
@@ -367,27 +384,43 @@ namespace ElasticsearchQuery.Tests
             Assert.NotEmpty(q1res);
 
             var fullList1 = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES") && a.Price <= 200);
-           
+
             Assert.True(fullList1 == q1res.Count);
             Assert.True(q1res.All(a => a.Tests.Any(e => e.MemberName == "JAMES") && a.Price <= 200));
-            ////
+            //
 
-            //var q3 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
-
-
-
-            //q3 = q3.Where(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1));
-            //var q3res = q3.ToList();
-
-            //Assert.NotEmpty(q3res);
-
-            //var fullList = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2));
-            //var ef = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2));
-
-            //Assert.True(fullList == q3res.Count);
-            //Assert.True(q3res.All(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2)));
+            var q3 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
 
 
+
+            q3 = q3.Where(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1));
+            var q3res = q3.ToList();
+
+            Assert.NotEmpty(q3res);
+
+            var fullList = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1));
+            var ef = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1));
+
+            Assert.True(fullList == q3res.Count);
+            Assert.True(q3res.All(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1)));
+
+            ///////////////
+            ///
+            var q4 = ElasticSearchQueryFactory.CreateQuery<ProductTestMultiple>(client, GetMap(), NullLog.Instance);
+
+
+
+            q4 = q4.Where(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1) && a.Name == "Product D");
+            
+            var q4res = q4.ToList();
+
+            Assert.NotEmpty(q4res);
+
+            var fullList2 = products.Count(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1) && a.Name == "Product D");
+            
+
+            Assert.True(fullList2 == q4res.Count);
+            Assert.True(q4res.All(a => a.Tests.Any(e => e.MemberName == "JAMES" && e.MarketId == 2 || e.VegetableId == 1) && a.Name == "Product D"));
         }
 
         [Fact]
@@ -1263,11 +1296,19 @@ namespace ElasticsearchQuery.Tests
         {
 
         }
+        public TestType(int id, int marketId, string memberName, int vegetableId)
+        {
+            Id = id;
+            MarketId = marketId;
+            MemberName = memberName;
+            VegetableId = vegetableId;
+        }
         public TestType(int id, int marketId, string memberName)
         {
             Id = id;
             MarketId = marketId;
             MemberName = memberName;
+            
         }
         public int Id { get; set; }
         public int MarketId { get; set; }
