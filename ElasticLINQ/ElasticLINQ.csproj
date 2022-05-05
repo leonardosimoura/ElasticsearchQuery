@@ -59,7 +59,9 @@
     <Compile Include="ElasticMethods.cs" />
     <Compile Include="ElasticQuery.cs" />
     <Compile Include="ElasticQueryExtensions.cs" />
+    <Compile Include="ElasticQueryMapper.cs" />
     <Compile Include="ElasticQueryProvider.cs" />
+    <Compile Include="ElasticSearchQueryFactory.cs" />
     <Compile Include="IElasticConnection.cs" />
     <Compile Include="IElasticContext.cs" />
     <Compile Include="IElasticQuery.cs" />

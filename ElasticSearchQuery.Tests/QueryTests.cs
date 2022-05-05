@@ -3,15 +3,10 @@ using Nest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using ElasticsearchQuery.Extensions;
 using Xunit;
-using System.Reflection;
-using System.Linq.Expressions;
-using System.Text;
-using System.Diagnostics;
 using ElasticLinq.Mapping;
 using ElasticLinq.Logging;
+using ElasticLinq;
 
 namespace ElasticsearchQuery.Tests
 {
@@ -542,102 +537,7 @@ namespace ElasticsearchQuery.Tests
             Assert.Equal(99, result.First().Price);
         }
 
-        [Fact(Skip = "Not supported")]
-        public void MatchPhrase()
-        {
-            var product = new ProductTest(Guid.NewGuid(), "Product of category", 99);
-
-            var productList = GenerateData(1000, product);
-
-            AddData(productList.ToArray());
-            var client = ObterCliente();
-
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
-
-            query = query.Where(w => w.NameAsText.MatchPhrase("of category"));
-
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.Contains(result, f => f.ProductId == product.ProductId);
-            Assert.Equal(99, result.First().Price);
-        }
-
-        [Fact(Skip = "Not supported")]
-        public void MatchPhraseDeny()
-        {
-            var product = new ProductTest(Guid.NewGuid(), "Product of category", 99);
-
-            var productList = GenerateData(1000, product);
-
-            AddData(productList.ToArray());
-            var client = ObterCliente();
-
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
-
-            query = query.Where(w => !w.NameAsText.MatchPhrase("of category"));
-
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.DoesNotContain(result, f => f.ProductId == product.ProductId);
-        }
-
-        [Fact(Skip = "Not supported")]
-        public void MultiMatch()
-        {
-            var product = new ProductTest(Guid.NewGuid(), "Product of category", 99);
-
-            var productList = GenerateData(1000, product);
-
-            AddData(productList.ToArray());
-            var client = ObterCliente();
-
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
-
-            query = query.Where(w => w.MultiMatch("category",t => t.NameAsText,t => t.Name));
-
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.Contains(result, f => f.ProductId == product.ProductId);
-            Assert.Equal(99, result.First().Price);
-        }
-
-        [Fact(Skip = "Not supported")]
-        public void MultiMatchDeny()
-        {
-            var product = new ProductTest(Guid.NewGuid(), "Product of category", 99);
-
-            var productList = GenerateData(1000, product);
-
-            AddData(productList.ToArray());
-            var client = ObterCliente();
-
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
-
-            query = query.Where(w => !w.MultiMatch("category", t => t.NameAsText, t => t.Name));
-
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.DoesNotContain(result, f => f.ProductId == product.ProductId);
-        }
-
-        [Fact(Skip ="Not Supported")]
-        public void Exists()
-        {
-            var product = new ProductTest(Guid.NewGuid(), null, 99);
-
-            var productList = GenerateData(1000, product);
-
-            AddData(productList.ToArray());
-            var client = ObterCliente();
-
-            var query = ElasticSearchQueryFactory.CreateQuery<ProductTest>(client, GetMap(), NullLog.Instance);
-
-            query = query.Where(w => w.Exists(t => t.NameAsText));
-
-            var result = query.ToList();
-            Assert.NotEmpty(result);
-            Assert.DoesNotContain(result, f => f.ProductId == product.ProductId);
-        }
+     
 
         [Fact]
         public void OrderBy()

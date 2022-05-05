@@ -1,4 +1,4 @@
-﻿using ElasticsearchQuery.Extensions;
+﻿
 using Nest;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace ElasticsearchQuery
+namespace ElasticLinq
 {
     public class ElasticQueryMapper
     {
@@ -23,6 +23,7 @@ namespace ElasticsearchQuery
         /// </summary>
         /// <param name="type"></param>
         /// <returns>The Map for type<see cref="ElasticIndexMap"/></returns>
+        [Obsolete]
         public static ElasticIndexMap GetMap(Type type)
         {
             ElasticIndexMap map = null;
@@ -58,10 +59,11 @@ namespace ElasticsearchQuery
 
     public class ElasticIndexMap
     {
+       
         public ElasticIndexMap(string index, string[] indexTypes)
         {
             Index = index;
-            IndexTypes = indexTypes;
+            
         }
 
         public string Index { get;private set; }

@@ -20,7 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ElasticLINQ\ElasticLINQ.csproj" />
-    <ProjectReference Include="..\ElasticSearchQuery\ElasticsearchQuery.csproj" />
   </ItemGroup>
 
 </Project>
