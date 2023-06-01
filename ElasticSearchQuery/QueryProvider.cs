@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace ElasticsearchQuery
 {
-    internal abstract class QueryProvider : IQueryProvider
+    public abstract class QueryProvider : IQueryProvider
     {
         protected QueryProvider()
         {
