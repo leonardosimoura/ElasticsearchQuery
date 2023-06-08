@@ -22,8 +22,8 @@ namespace ElasticsearchQuery
         ExpressionType binaryExpType;
         object value = null;
         private bool AndCondition = true;
-        Type elementType;
         bool denyCondition = false;
+        bool isNestedCondition = false;
 
 
         private AggregationBase _aggregationBase;
@@ -44,6 +44,8 @@ namespace ElasticsearchQuery
         {
 
         }
+
+        internal object Value => value;
 
         public AggregationDictionary ObterAgrupamentoNest(IEnumerable<GroupBy> agrupamentos, AggregationBase aggregations = null)
         {
@@ -94,8 +96,8 @@ namespace ElasticsearchQuery
 
         private void SetAggregation()
         {
-
-
+            
+            
             foreach (var item in aggregations)
             {
                 switch (item.Method)
@@ -129,159 +131,152 @@ namespace ElasticsearchQuery
             {
                 case "Contains":
 
-                    Func<WildcardQueryDescriptor<object>, IWildcardQuery> _containsSelector = f => f.Value("*" + value.ToString()).Field(field);
+                    Func<MatchQueryDescriptor<object>, IMatchQuery> matchSelector = f => f.Field(field).Query(value.ToString());
 
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Wildcard(_containsSelector)));
-                    else
-                        queryContainer = Query<object>.Wildcard(_containsSelector);
+                    queryContainer = denyCondition
+                        ? Query<object>.Bool(b => b.MustNot(m => m.Match(matchSelector)))
+                        : Query<object>.Match(matchSelector);
                     break;
                 case "StartsWith":
 
-                    Func<PrefixQueryDescriptor<object>, IPrefixQuery> _startsWithSelector = f => f.Field(field).Value(value.ToString());
+                    Func<PrefixQueryDescriptor<object>, IPrefixQuery> startsWithSelector = f => f.Field(field).Value(value.ToString());
 
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Prefix(_startsWithSelector)));
-                    else
-                        queryContainer = Query<object>.Prefix(_startsWithSelector);
+                    queryContainer = denyCondition
+                        ? Query<object>.Bool(b => b.MustNot(m => m.Prefix(startsWithSelector)))
+                        : Query<object>.Prefix(startsWithSelector);
                     break;
                 case "EndsWith":
 
-                    Func<RegexpQueryDescriptor<object>, IRegexpQuery> _endsWithSelector = f => f.Field(field).Value(".*" + value.ToString());
+                    Func<RegexpQueryDescriptor<object>, IRegexpQuery> endsWithSelector = f => f.Field(field).Value(".*" + value.ToString());
 
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Regexp(_endsWithSelector)));
-                    else
-                        queryContainer = Query<object>.Regexp(_endsWithSelector);
+                    queryContainer = denyCondition
+                        ? Query<object>.Bool(b => b.MustNot(m => m.Regexp(endsWithSelector)))
+                        : Query<object>.Regexp(endsWithSelector);
                     break;
                 case "MatchPhrase":
 
-                    Func<MatchPhraseQueryDescriptor<object>, IMatchPhraseQuery> _matchPhraseSelector = f => f.Field(field).Query(value.ToString());
+                    Func<MatchPhraseQueryDescriptor<object>, IMatchPhraseQuery> matchPhraseSelector = f => f.Field(field).Query(value.ToString());
 
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MatchPhrase(_matchPhraseSelector)));
-                    else
-                        queryContainer = Query<object>.MatchPhrase(_matchPhraseSelector);
+                    queryContainer = denyCondition
+                        ? Query<object>.Bool(b => b.MustNot(m => m.MatchPhrase(matchPhraseSelector)))
+                        : Query<object>.MatchPhrase(matchPhraseSelector);
                     break;
                 case "MultiMatch":
-                    var _fields = field.Split(';');
+                    var fields = field.Split(';');
 
-                    Func<MultiMatchQueryDescriptor<object>, IMultiMatchQuery> _multiMachSelector = f => f.Fields(_fields).Query(value.ToString());
+                    Func<MultiMatchQueryDescriptor<object>, IMultiMatchQuery> multiMachSelector = f => f.Fields(fields).Query(value.ToString());
 
-                    if (denyCondition)                    
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.MultiMatch(_multiMachSelector)));                    
-                    else                    
-                        queryContainer = Query<object>.MultiMatch(_multiMachSelector);                    
+                    queryContainer = denyCondition
+                        ? Query<object>.Bool(b => b.MustNot(m => m.MultiMatch(multiMachSelector)))
+                        : Query<object>.MultiMatch(multiMachSelector);
 
                     break;
                 default:
                     break;
             }
-
-            if (_searchRequest.Query == null)
-            {
-                _searchRequest.Query = queryContainer;
-            }
-            else
-            {
-                if (AndCondition)
-                {
-                    _searchRequest.Query = _searchRequest.Query && _searchRequest.Query;
-                }
-                else
-                {
-                    _searchRequest.Query = _searchRequest.Query || _searchRequest.Query;
-                }
-            }
         }
 
-        private void SetQuery()
+
+
+        private QueryContainer SetQuery()
         {
             switch (binaryExpType)
             {
                 case ExpressionType.Equal:
-                    if (typeof(System.Collections.IEnumerable).IsAssignableFrom(value.GetType()))
+                    if (typeof(System.Collections.IEnumerable).IsAssignableFrom(value.GetType()) && value.GetType().Name != "String")
                     {
-                        var _tempCollection = value as System.Collections.IEnumerable;
+                        var tempCollection = value as System.Collections.IEnumerable;
 
-                        Func<TermsQueryDescriptor<object>, ITermsQuery> _termsSelector = t => t.Field(field).Terms(_tempCollection);
+                        ITermsQuery termsSelector(TermsQueryDescriptor<object> t) => t.Field(field).Terms(tempCollection);
 
-                        if (denyCondition)
-                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Terms(_termsSelector)));
-                        else
-                            queryContainer = Query<object>.Terms(_termsSelector);
+                        queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.Terms(termsSelector))) : Query<object>.Terms(termsSelector);
                     }
                     else
                     {
-                        Func<TermQueryDescriptor<object>, ITermQuery> _termSelector = t => t.Field(field).Value(value);
+                        ITermQuery termSelector(TermQueryDescriptor<object> t) => t.Field(field).Value(value);
 
-                        if (denyCondition)
-                            queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_termSelector)));
-                        else
-                            queryContainer = Query<object>.Term(_termSelector);
+                        queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.Term(termSelector))) : Query<object>.Term(termSelector);
                     }
                     break;
                 case ExpressionType.NotEqual:
 
-                    Func<TermQueryDescriptor<object>, ITermQuery> _notEqualTermSelector = t => t.Field(field).Value(value);
+                    Func<TermQueryDescriptor<object>, ITermQuery> notEqualTermSelector = t => t.Field(field).Value(value);
 
-                    if (denyCondition)                    
-                        queryContainer = Query<object>.Term(_notEqualTermSelector);                    
-                    else                    
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Term(_notEqualTermSelector)));
+                    queryContainer = denyCondition
+                        ? Query<object>.Term(notEqualTermSelector)
+                        : Query<object>.Bool(b => b.MustNot(m => m.Term(notEqualTermSelector)));
                     break;
                 case ExpressionType.LessThan:
-                    //TODO cast only when is necessary to double / decimal
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _lessThanSelector = r => r.Field(field).LessThan((double?)((decimal?)value));
-                    if (denyCondition)                    
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_lessThanSelector)));                    
-                    else                    
-                        queryContainer = Query<object>.Range(_lessThanSelector);
+                    // TODO cast only when is necessary to double / decimal
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        IDateRangeQuery lessThan(DateRangeQueryDescriptor<object> r) => r.Field(field).LessThan((DateTime?)Convert.ToDateTime(value));
+                        queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(lessThan))) : Query<object>.DateRange(lessThan);
+                    }
+                    else
+                    {
+                        INumericRangeQuery lessThan(NumericRangeQueryDescriptor<object> r) => r.Field(field).LessThan((double?)Convert.ToDecimal(value));
+                        queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.Range(lessThan))) : Query<object>.Range(lessThan);
+                    }
+
                     break;
                 case ExpressionType.LessThanOrEqual:
 
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _lessThanOrEqualSelector = r => r.Field(field).LessThanOrEquals((double?)((decimal?)value));
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_lessThanOrEqualSelector)));
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        IDateRangeQuery lessThanOrEqual(DateRangeQueryDescriptor<object> r) => r.Field(field).LessThanOrEquals((DateTime?)Convert.ToDateTime(value));
+                        queryContainer = denyCondition
+                            ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(lessThanOrEqual)))
+                            : Query<object>.DateRange(lessThanOrEqual);
+                    }
                     else
-                        queryContainer = Query<object>.Range(_lessThanOrEqualSelector);
+                    {
+                        INumericRangeQuery greaterThanSelector(NumericRangeQueryDescriptor<object> r) => r.Field(field).LessThanOrEquals((double?)Convert.ToDecimal(value));
+                        queryContainer = denyCondition
+                            ? Query<object>.Bool(b => b.MustNot(m => m.Range(greaterThanSelector)))
+                            : Query<object>.Range(greaterThanSelector);
+                    }
+
                     break;
                 case ExpressionType.GreaterThan:
-
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanSelector = r => r.Field(field).GreaterThan((double?)((decimal?)value));
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanSelector)));
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        IDateRangeQuery greaterThanSelector(DateRangeQueryDescriptor<object> r) => r.Field(field).GreaterThan((DateTime?)Convert.ToDateTime(value));
+                        queryContainer = denyCondition
+                            ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(greaterThanSelector)))
+                            : Query<object>.DateRange(greaterThanSelector);
+                    }
                     else
-                        queryContainer = Query<object>.Range(_greaterThanSelector);
+                    {
+                        INumericRangeQuery greaterThanSelector1(NumericRangeQueryDescriptor<object> r) => r.Field(field).GreaterThan((double?)Convert.ToDecimal(value));
+                        queryContainer = denyCondition
+                            ? Query<object>.Bool(b => b.MustNot(m => m.Range(greaterThanSelector1)))
+                            : Query<object>.Range(greaterThanSelector1);
+                    }
 
                     break;
                 case ExpressionType.GreaterThanOrEqual:
-
-                    Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> _greaterThanOrEqualSelector = r => r.Field(field).GreaterThanOrEquals((double?)((decimal?)value));
-                    if (denyCondition)
-                        queryContainer = Query<object>.Bool(b => b.MustNot(m => m.Range(_greaterThanOrEqualSelector)));
+                    if (value.GetType().Name == nameof(DateTime))
+                    {
+                        IDateRangeQuery greaterThanOrEqualSelector(DateRangeQueryDescriptor<object> r) => r.Field(field).GreaterThanOrEquals((DateTime?)Convert.ToDateTime(value));
+                        queryContainer = denyCondition
+                            ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(greaterThanOrEqualSelector)))
+                            : Query<object>.DateRange(greaterThanOrEqualSelector);
+                    }
                     else
-                        queryContainer = Query<object>.Range(_greaterThanOrEqualSelector);
+                    {
+                        INumericRangeQuery greaterThanOrEqualSelector1(NumericRangeQueryDescriptor<object> r) => r.Field(field).GreaterThanOrEquals((double?)Convert.ToDecimal(value));
+                        queryContainer = denyCondition
+                            ? Query<object>.Bool(b => b.MustNot(m => m.Range(greaterThanOrEqualSelector1)))
+                            : Query<object>.Range(greaterThanOrEqualSelector1);
+                    }
+
                     break;
+
                 default:
                     break;
             }
-
-            if (_searchRequest.Query == null)
-            {
-                _searchRequest.Query = queryContainer;
-            }
-            else
-            {
-                if (AndCondition)
-                {
-                    _searchRequest.Query = _searchRequest.Query && _searchRequest.Query;
-                }
-                else
-                {
-                    _searchRequest.Query = _searchRequest.Query || _searchRequest.Query;
-                }
-            }
+            return queryContainer;
         }
 
         private void SetOrderBy()
@@ -289,25 +284,41 @@ namespace ElasticsearchQuery
             if (fieldsOrderBy.Any())
             {
                 fieldsOrderBy.Reverse();
-                var _sortList = new List<ISort>();
+                var sortList = new List<ISort>();
                 foreach (var item in fieldsOrderBy)
                 {
-                    _sortList.Add(new FieldSort()
+                    sortList.Add(new FieldSort()
                     {
                         Field = item.Field,
                         Order = item.Order
                     });
                 }
 
-                _searchRequest.Sort = _sortList;
+                _searchRequest.Sort = sortList;
             }
         }
 
-        internal QueryTranslateResult Translate(Expression expression, Type elementType)
+        private void ResetState()
         {
-            this.elementType = elementType;
-            var queryMap = ElasticQueryMapper.GetMap(this.elementType);
-            var _index = Indices.Index(queryMap.Index);
+            _searchRequest = null;
+            queryContainer = null;
+            field = string.Empty;
+            fieldsGroupBy = new List<GroupBy>();
+            aggregations = new List<Aggregation>();
+            fieldsOrderBy = new List<OrderBy>();
+            returnNumberOfRows = false;
+            operacao = string.Empty;
+            binaryExpType = default;
+            value = null;
+            AndCondition = true;
+            denyCondition = false;
+            isNestedCondition = false;
+            _aggregationBase = null;
+        }
+
+        internal QueryTranslateResult Translate(Expression expression, string indexName)
+        {
+            var _index = Indices.Index(indexName);
 
             _searchRequest = new SearchRequest(_index);
 
@@ -326,21 +337,33 @@ namespace ElasticsearchQuery
             }
 
             var result = new QueryTranslateResult(_searchRequest, fieldsGroupBy, aggregations, returnNumberOfRows);
-
+            ResetState();
             return result;
         }
 
         protected override Expression VisitMethodCall(MethodCallExpression m)
         {
-
             switch (m.Method.Name)
             {
+                case "Any":
                 case "Where":
+
+                    foreach (var argument in m.Arguments)
+                    {
+                        if (argument is MethodCallExpression)
+                        {
+                            Visit(argument);
+                        }
+                    }
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
-
-                    this.Visit(lambda.Body);
-
+                    var expression = lambda.Body;
+                    if(expression is BinaryExpression
+                        || expression is MethodCallExpression)
+                    {
+                        _searchRequest.Query &= CreateNestQuery(expression);
+                    }
                     return m;
+
                 case "Count":
 
                     if (m.Arguments.Count == 1)
@@ -362,10 +385,14 @@ namespace ElasticsearchQuery
                             aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
                         }
                         SetAggregation();
+                        
+                    if (m.Arguments.First() is ConstantExpression == false)
+                    {
+                        Visit(m.Arguments.First());
                     }
-                    return m;
+                    }
 
-                    break;
+                    return m;
                 case "Min":
                 case "Max":
                 case "Sum":
@@ -376,14 +403,23 @@ namespace ElasticsearchQuery
                         var memberExp = aggLambda.Body as MemberExpression;
                         aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
                     }
+                    else if (aggLambda.Body.NodeType == ExpressionType.Convert)
+                    {
+                        var memberExp = ((UnaryExpression)aggLambda.Body).Operand as MemberExpression;
+                        aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
+                    }
                     SetAggregation();
+
+                    if (m.Arguments.First() is ConstantExpression == false)
+                    {
+                        Visit(m.Arguments.First());
+                    }
+
                     return m;
-                    break;
                 case "Contains":
                     operacao = m.Method.Name;
 
-                    var memberContainsExp = (m.Object as MemberExpression);
-
+                    var memberContainsExp = m.Object as MemberExpression ?? m.Arguments[0] as MemberExpression;
                     if (memberContainsExp != null)
                     {
                         if (memberContainsExp.Expression is ConstantExpression)
@@ -396,7 +432,19 @@ namespace ElasticsearchQuery
                             if (typeof(System.Collections.IEnumerable).IsAssignableFrom(resultConstMemberExpValue.GetType()))
                             {
                                 value = resultConstMemberExpValue;//Convert.ChangeType(resultConstMemberExpValue, resultConstMemberExpValue.GetType());
-                                field = (m.Arguments.First() as MemberExpression)?.Member.Name.ToCamelCase();
+                                if (m.Object == null)
+                                {
+                                    field = (m.Arguments[1] as MemberExpression)?.Member.Name.ToCamelCase();
+                                }
+                                else
+                                {
+                                    if (m.Arguments.First().NodeType == ExpressionType.Convert)
+                                    {
+                                        field = ((MemberExpression)((UnaryExpression)m.Arguments.First()).Operand).Member.Name.ToCamelCase();
+                                    }
+                                    else
+                                        field = (m.Arguments.First() as MemberExpression)?.Member.Name.ToCamelCase();
+                                }
                                 binaryExpType = ExpressionType.Equal;//To make a terms query
                                 SetQuery();
                             }
@@ -404,7 +452,10 @@ namespace ElasticsearchQuery
                             {
                                 field = memberContainsExp.Member.Name.ToCamelCase();
                                 if (m.Arguments[0] is ConstantExpression)
+                                {
                                     value = (m.Arguments[0] as ConstantExpression).Value;
+                                }
+
                                 SetTextSearch();
                             }
                         }
@@ -412,7 +463,10 @@ namespace ElasticsearchQuery
                         {
                             field = memberContainsExp.Member.Name.ToCamelCase();
                             if (m.Arguments[0] is ConstantExpression)
+                            {
                                 value = (m.Arguments[0] as ConstantExpression).Value;
+                            }
+
                             SetTextSearch();
                         }
                     }
@@ -423,23 +477,25 @@ namespace ElasticsearchQuery
                     field = (m.Object as System.Linq.Expressions.MemberExpression).Member.Name.ToCamelCase();
 
                     if (m.Arguments[0] is ConstantExpression)
+                    {
                         value = (m.Arguments[0] as ConstantExpression).Value;
+                    }
 
                     SetTextSearch();
 
                     return m;
-                    break;
                 case "MatchPhrase":
                     operacao = m.Method.Name;
                     field = (m.Arguments[0] as System.Linq.Expressions.MemberExpression).Member.Name.ToCamelCase();
 
                     if (m.Arguments[1] is ConstantExpression)
+                    {
                         value = (m.Arguments[1] as ConstantExpression).Value;
+                    }
 
                     SetTextSearch();
 
                     return m;
-                    break;
                 case "Exists":
 
                     var mExpExists = ((ExpressionHelper.StripQuotes(m.Arguments[1]) as LambdaExpression).Body as MemberExpression).Member.Name.ToCamelCase();
@@ -461,7 +517,6 @@ namespace ElasticsearchQuery
                         }
                     }
                     return m;
-                    break;
                 case "MultiMatch":
                     operacao = m.Method.Name;
 
@@ -486,7 +541,6 @@ namespace ElasticsearchQuery
                     SetTextSearch();
 
                     return m;
-                    break;
                 case "GroupBy":
 
                     LambdaExpression groupByLambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
@@ -507,9 +561,11 @@ namespace ElasticsearchQuery
                     }
 
                     SetAggregation();
-
+                    if (m.Arguments[0] is MethodCallExpression)
+                    {
+                        Visit(m.Arguments[0]);
+                    }
                     return m;
-                    break;
                 case "Select":
                     LambdaExpression selectLambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
                     if (m.Arguments[0] is MethodCallExpression)
@@ -532,12 +588,29 @@ namespace ElasticsearchQuery
                                     }
                                 }
                             }
+                            else if(selectLambda.Body is MemberInitExpression)
+                            {
+                                var bindings = (selectLambda.Body as MemberInitExpression).Bindings;
+                                foreach (var binding in bindings)
+                                {
+                                    var argument = (binding as MemberAssignment).Expression;
+                                    if (argument is MethodCallExpression)
+                                    {
+                                        var arMExp = argument as MethodCallExpression;
+                                        if (arMExp.Arguments.Count > 1)
+                                        {
+                                            var propArgLambda = (LambdaExpression)ExpressionHelper.StripQuotes                                  (arMExp.Arguments[1]);
+                                            var propArgMExp = propArgLambda.Body as MemberExpression;
+                                            aggregations.Add(new Aggregation(propArgMExp.Member.Name.ToCamelCase(),                             arMExp.Method.Name));
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    this.Visit(m.Arguments[0]);
+                    Visit(m.Arguments[0]);
                     return m;
-                    break;
                 case "Take":
 
                     int? _take = null;
@@ -555,7 +628,6 @@ namespace ElasticsearchQuery
                     }
 
                     return m;
-                    break;
                 case "Skip":
 
                     int? _from = null;
@@ -571,7 +643,6 @@ namespace ElasticsearchQuery
                         Visit(m.Arguments.First());
 
                     return m;
-                    break;
                 case "OrderBy":
                 case "OrderByDescending":
                 case "ThenBy":
@@ -581,19 +652,22 @@ namespace ElasticsearchQuery
                     if (orderLambdaExp.Body is MemberExpression)
                     {
                         var mExp = orderLambdaExp.Body as MemberExpression;
-
-                        fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(), (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
+                        if (((PropertyInfo)mExp.Member).PropertyType == typeof(string))
+                        {
+                            fieldsOrderBy.Add(new OrderBy($"{mExp.Member.Name.ToCamelCase()}.keyword", (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
+                        }
+                        else
+                        {
+                            fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(), (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
+                        }
                     }
 
                     if (m.Arguments.First() is ConstantExpression == false)
                         Visit(m.Arguments.First());
 
                     return m;
-                    break;
-
                 default:
                     throw new NotSupportedException(string.Format("The method '{0}' is not supported", m.Method.Name));
-                    break;
             }
         }
 
@@ -605,27 +679,89 @@ namespace ElasticsearchQuery
                 case ExpressionType.Not:
                     {
                         denyCondition = true;
-                        this.Visit(u.Operand);
+                        Visit(u.Operand);
                     }
                     break;
+                case ExpressionType.Quote:
+                    {
+                        Visit(u.Operand);
+                    }
+                    break;
+                case ExpressionType.Convert:
+                    {
+                        Visit(u.Operand);
+                    }
+                    break;
+
                 default:
                     throw new NotSupportedException(string.Format("The unary operator '{0}' is not supported", u.NodeType));
             }
             return u;
         }
 
-        protected override Expression VisitBinary(BinaryExpression b)
+        protected QueryContainer CreateNestQuery(Expression expression)
         {
-            this.Visit(b.Left);
+            if (expression is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.Name == "Any")
+                {
+                    if (methodCallExpression.Arguments.Count() > 1)
+                    {
+                        isNestedCondition = true;
+                        LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(methodCallExpression.Arguments[1]);
+                        var exp = lambda.Body;
+                        var query = CreateNestQuery(exp);
+                        isNestedCondition = false;
+                        return query;
+                    }
+                    else
+                    {
+                        return queryContainer;
+                    }
+                }
+                else
+                {
+                    Visit(methodCallExpression);
+                    return queryContainer;
+                }
+            }
+            var b = (BinaryExpression)expression;
+            binaryExpType = b.NodeType;
+
+            if (isNestedCondition)
+            {
+                if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
+                {
+                    var left = ((IQueryContainer)CreateNestQuery(b.Left)).Nested.Query;
+                    var right = ((IQueryContainer)CreateNestQuery(b.Right)).Nested.Query;
+                    var path = field.Substring(0, field.LastIndexOf('.'));
+                    var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left & right));
+                    return nestedQuery;
+                }
+                else if (binaryExpType == ExpressionType.Or || binaryExpType == ExpressionType.OrElse)
+                {
+                    var left = ((IQueryContainer)CreateNestQuery(b.Left)).Nested.Query;
+                    var right = ((IQueryContainer)CreateNestQuery(b.Right)).Nested.Query;
+                    var path = field.Substring(0, field.LastIndexOf('.'));
+                    var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => left | right));
+                    return nestedQuery;
+                }
+            }
+            else
+            {
+                if (binaryExpType == ExpressionType.AndAlso || binaryExpType == ExpressionType.And)
+                {
+                    return CreateNestQuery(b.Left) & CreateNestQuery(b.Right);
+                }
+                else if (binaryExpType == ExpressionType.OrElse || binaryExpType == ExpressionType.Or)
+                {
+                    return CreateNestQuery(b.Left) | CreateNestQuery(b.Right);
+                }
+            }
+            Visit(b.Left);
 
             switch (b.NodeType)
             {
-                case ExpressionType.And:
-                    AndCondition = true;
-                    break;
-                case ExpressionType.Or:
-                    AndCondition = false;
-                    break;
                 case ExpressionType.Equal:
                 case ExpressionType.NotEqual:
                 case ExpressionType.LessThan:
@@ -637,11 +773,15 @@ namespace ElasticsearchQuery
                 default:
                     throw new NotSupportedException(string.Format("The binary operator '{0}' is not supported", b.NodeType));
             }
-            this.Visit(b.Right);
-
-            SetQuery();
-
-            return b;
+            Visit(b.Right);
+            if (isNestedCondition)
+            {
+                var query = SetQuery();
+                var path = field.Substring(0, field.LastIndexOf('.') == -1 ? 0 : field.LastIndexOf('.'));
+                var nestedQuery = Query<object>.Nested(n => n.Path(path).Query(x => query));
+                return nestedQuery;
+            }
+            return SetQuery();
         }
 
         protected override Expression VisitConstant(ConstantExpression c)
@@ -667,9 +807,22 @@ namespace ElasticsearchQuery
 
         protected override Expression VisitMember(MemberExpression m)
         {
+            string displayName = null;
+            if (m.Member.CustomAttributes.ToList().FirstOrDefault() != null && m.Member.CustomAttributes.ToList().FirstOrDefault().ConstructorArguments.Count > 0 && isNestedCondition == true)
+            {
+                displayName = m.Member.CustomAttributes.ToList().FirstOrDefault().ConstructorArguments[0].Value.ToString();
+            }
+
             if (m.Expression != null && m.Expression.NodeType == ExpressionType.Parameter)
             {
-                field = m.Member.Name.ToCamelCase();
+                if (displayName != null && isNestedCondition == true)
+                {
+                    field = displayName;
+                }
+                else
+                {
+                    field = m.Member.Name.ToCamelCase();
+                }
             }
             else if (m.Expression != null && m.Expression.NodeType == ExpressionType.Constant)
             {

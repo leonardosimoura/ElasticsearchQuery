@@ -1,27 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageReleaseNotes>See https://github.com/leonardosimoura/ElasticSearchQuery</PackageReleaseNotes>
-    <PackageIconeUrl>https://github.com/leonardosimoura/ElasticSearchQuery/blob/master/nuget-icon.png</PackageIconeUrl>
-    <PackageLicenseUrl>https://github.com/leonardosimoura/ElasticSearchQuery/blob/master/LICENSE</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/leonardosimoura/ElasticSearchQuery</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/leonardosimoura/ElasticSearchQuery.git</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <Title>ElasticsearchQuery</Title>
-    <Description>Simple IQueryable implementation for Elasticsearch</Description>
-    <Authors>Leonardo Silvio de Moura</Authors>
-    <Version>0.1.9</Version>
-    <UpdateVersionProperties>true</UpdateVersionProperties>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageTags>Elasticsearch Elastic Nest ElasticsearchQuery Query</PackageTags>
-    <AssemblyVersion>0.1.9.0</AssemblyVersion>
-    <FileVersion>0.1.9.0</FileVersion>
-  
-</PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="4.*" />
-    <PackageReference Include="NEST" Version="7.*" />
-  </ItemGroup>
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<PackageReleaseNotes>See https://github.com/leonardosimoura/ElasticsearchQuery</PackageReleaseNotes>
+		<PackageIconeUrl>https://github.com/leonardosimoura/ElasticsearchQuery/blob/master/nuget-icon.png</PackageIconeUrl>
+		<PackageLicenseUrl>https://github.com/leonardosimoura/ElasticsearchQuery/blob/master/LICENSE</PackageLicenseUrl>
+		<PackageProjectUrl>https://github.com/leonardosimoura/ElasticsearchQuery</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/leonardosimoura/ElasticsearchQuery.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<Title>ElasticsearchQuery</Title>
+		<Description>IQueryable implementation for Elasticsearch</Description>
+		<Authors>Leonardo Silvio de Moura</Authors>
+		<Version>1.1.1</Version>
+		<UpdateVersionProperties>true</UpdateVersionProperties>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<PackageTags>Elasticsearch Elastic Nest ElasticsearchQuery Query</PackageTags>
+		<AssemblyVersion>1.1.1.0</AssemblyVersion>
+		<FileVersion>1.1.1.0</FileVersion>
+		<RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net472|AnyCPU'">
+		<TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+		<WarningsAsErrors />
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="NEST" Version="7.17.5" />
+		<PackageReference Include="System.Linq.Dynamic.Core" Version="1.2.18" />
+	</ItemGroup>
 </Project>
