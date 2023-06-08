@@ -1,18 +1,38 @@
-﻿using ElasticsearchQuery.Extensions;
+﻿using Elasticsearch.Net;
 using ElasticsearchQuery.Helpers;
+using ElasticSearchQuery;
 using Nest;
 using System;
-using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
+using System.Linq.Dynamic.Core;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 
 namespace ElasticsearchQuery
 {
     internal class ElasticQueryProvider : QueryProvider
     {
         private readonly IElasticClient _elasticClient;
+
+        private Type _elementType;
+
+        private Type _expType;
+
+        private QueryTranslateResult _nestQuery;
+
+        private MethodInfo _search;
+
+        private Type _searchResponse;
+
+        private int _maxResultWindow = 10000;
+
+        private bool IsAnAggregationQuery => _nestQuery.Aggregation.Any() || _nestQuery.ReturnNumberOfRows;
+
+        private bool IsQueryWithinMaxResultWindow => _nestQuery.SearchRequest.From is null || _nestQuery.SearchRequest.From <= (_maxResultWindow - _nestQuery.SearchRequest.Size);
+
+        private bool IsQueryBeyondMaxResultWindow => _nestQuery.SearchRequest.From > (_maxResultWindow - _nestQuery.SearchRequest.Size);
+
         public ElasticQueryProvider(IElasticClient elasticClient)
         {
             _elasticClient = elasticClient;
@@ -21,16 +41,16 @@ namespace ElasticsearchQuery
         {
             //Element type of IQueryable
             //Need this for the elastic search request
-            Type elementType = TypeSystem.GetElementType(expression.Type);
-            Type expType = TypeSystem.GetElementType(expression.Type);
+            _elementType = TypeSystem.GetElementType(expression.Type);
+            _expType = TypeSystem.GetElementType(expression.Type);
 
-            if (Attribute.IsDefined(expType, typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false)
-                && expType.IsGenericType && expType.Name.Contains("AnonymousType")
-                && (expType.Name.StartsWith("<>") || expType.Name.StartsWith("VB$"))
-                && (expType.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic)
+            if (Attribute.IsDefined(_expType, typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false)
+                && _expType.IsGenericType && _expType.Name.Contains("AnonymousType")
+                && (_expType.Name.StartsWith("<>") || _expType.Name.StartsWith("VB$"))
+                && (_expType.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic)
             {
                 var mExp = expression as MethodCallExpression;
-                var t1 = TypeSystem.GetElementType(mExp.Arguments[0].Type) ;
+                var t1 = TypeSystem.GetElementType(mExp.Arguments[0].Type);
 
                 while (t1.IsGenericType)
                 {
@@ -38,19 +58,21 @@ namespace ElasticsearchQuery
                     t1 = TypeSystem.GetElementType(mExp.Arguments[0].Type);
                 }
 
-                elementType = t1;
+                _elementType = t1;
             }
 
-            //Whem use IQueryable.Sum() for example need make this to get the elementType
-            if (!elementType.IsClass)
+            //Whem use IQueryable.Sum() for example need make this to get the _elementType
+            if (!_elementType.IsClass)
             {
                 var exp = expression as MethodCallExpression;
-                elementType = exp.Arguments[0].Type.GenericTypeArguments[0];
+                _elementType = exp.Arguments[0].Type.GenericTypeArguments[0];
             }
 
-            var elasticQueryResult = new QueryTranslator().Translate(expression, elementType);
+            var indexName = ElasticQueryMapper.GetMap(_elementType).Index;
+            _nestQuery = new QueryTranslator().Translate(expression, indexName);
+            _searchResponse = typeof(SearchResponse<>).MakeGenericType(_elementType);
 
-            var method = typeof(ElasticClient)
+            var searchMethod = typeof(ElasticClient)
                           .GetMethods()
                           .Where(m => m.Name == "Search")
                           .Select(m => new
@@ -64,300 +86,118 @@ namespace ElasticsearchQuery
                                     && x.Params.First().ParameterType == typeof(ISearchRequest))
                         .Select(x => x.Method).First();
 
-            MethodInfo generic = method.MakeGenericMethod(elementType);
-            dynamic request = generic.Invoke(_elasticClient, new object[] { elasticQueryResult.SearchRequest });
+            _search = searchMethod.MakeGenericMethod(_elementType);
 
+            return Execute(indexName);
+        }
 
-            if (elasticQueryResult.ReturnNumberOfRows)
+        protected virtual object Execute(string indexName)
+        {
+            var settings = _elasticClient.Indices.GetSettings(indexName);
+            if(!settings.IsValid)
             {
-                return Convert.ChangeType(request.HitsMetadata.Total.Value, expType);
+                new ElasticResponseException(settings, _elementType);
             }
-
-            var closedGeneric = typeof(SearchResponse<>).MakeGenericType(elementType);           
-
-            //Simple Agregation
-            if (!expType.IsClass)
+            var indexKey = settings.Indices.Keys.FirstOrDefault();
+            if(settings.Indices.TryGetValue(indexKey ?? indexName, out IndexState value))
             {
-                var prop = closedGeneric.GetProperty("Aggregations");
-                var aggs = prop.GetValue(request) as AggregateDictionary;
-
-                if (aggs.Any())
+                if(value.Settings.TryGetValue("index.max_result_window", out object MaxResultWindow))
                 {
-                    var valueAgg = aggs.First().Value as ValueAggregate;
-                    return ConveterToType(expType, valueAgg.Value);
+                    _maxResultWindow = Convert.ToInt32(MaxResultWindow);
                 }
-                return ConveterToType(expType, 0);
+            }
+            if (IsAnAggregationQuery)
+            {
+                return ExecuteForAggregations();
+            }
+            else if (IsQueryWithinMaxResultWindow)
+            {
+                return ExecuteWithinMaxResultWindow();
+            }
+            else if (IsQueryBeyondMaxResultWindow)
+            {
+                return ExecuteBeyondMaxResultWindow();
+            }
+            return new { };
+        }
+
+        private object ExecuteForAggregations()
+        {
+            _nestQuery.SearchRequest.Size = 1;
+            _nestQuery.SearchRequest.Scroll = "3s";
+
+            dynamic response = _search.Invoke(_elasticClient, new object[] { _nestQuery.SearchRequest });
+
+            dynamic clearScrollResponse = _elasticClient.ClearScroll(cs => cs.ScrollId(response.ScrollId));
+
+            if (!response.IsValid)
+            {
+                new ElasticResponseException(response, _elementType);
+            }
+            if (_nestQuery.ReturnNumberOfRows)
+            {
+                return Convert.ChangeType(response.HitsMetadata.Total.Value, _expType);
             }
             else
             {
-                
-                if (elasticQueryResult.GroupBy.Any() || elasticQueryResult.Aggregation.Any())
-                {
-                    var mExp = expression as MethodCallExpression;
-                    var lastLambExp = ExpressionHelper.StripQuotes(mExp.Arguments.Last()) as LambdaExpression;
-                  
-                    var prop = closedGeneric.GetProperty("Aggregations");
-                    var aggs = prop.GetValue(request) as AggregateDictionary;
-
-                    var resultAgg = ConvertAggregateResult(aggs);
-
-                    if (lastLambExp.Body is NewExpression)
-                    {
-                        var newExp = lastLambExp.Body as NewExpression;
-
-                        //A set of items
-                        if (expression.Type.GetInterfaces().Any(t => t == typeof(IQueryable) || t == typeof(IQueryable<>)  ))
-                        {
-                            var typeList = typeof(List<>).MakeGenericType(expType);
-                            var list = Activator.CreateInstance(typeList);
-
-                            if (!resultAgg.Any())
-                                return list;
-
-                            var addMethod = typeList.GetMethod("Add");
-
-                            var membersExps = newExp.Arguments.Where(s => (s is MemberExpression))
-                                                            .Select(s => s as MemberExpression)
-                                                            .Select(s => s.Member.Name.ToCamelCase());                           
-
-                            var methodCallsExps = newExp.Arguments.Where(s => (s is MethodCallExpression)).Select(s => s as MethodCallExpression) .Select(s => s.Method.Name + "_" + ((s.Arguments.Last() as LambdaExpression ).Body as MemberExpression).Member.Name.ToCamelCase());
-
-
-                            Func<string, bool> filterPredicate = (string str) =>
-                            {
-                                return membersExps.Contains(str) || methodCallsExps.Contains(str);
-                            };
-
-                            if (membersExps.Count() == 1 && membersExps.First() == "key")
-                            {
-                                filterPredicate = (string str) =>
-                                {
-                                    return membersExps.Contains(str) || methodCallsExps.Contains(str);
-                                };
-                            }
-
-                            var parametersInfo = newExp.Constructor.GetParameters();
-
-                            foreach (var item in resultAgg)
-                            {      
-                                var parameters = item.Where(w => membersExps.Contains(w.Key) || methodCallsExps.Contains(w.Key)).Select(s => s.Value).ToArray();
-
-                                
-                                if (membersExps.Count() == 1 && membersExps.First() == "key")
-                                {
-                                    parameters = new object[] { item.First().Value }.Concat(parameters).ToArray();
-                                }
-
-                                for (int i = 0; i < parameters.Count(); i++)
-                                {
-                                    parameters[i] = ConveterToType(parametersInfo.ElementAt(i).ParameterType, parameters[i]);
-                                }
-
-
-                                var obj = newExp.Constructor.Invoke(parameters.ToArray());
-                                addMethod.Invoke(list, new object[] { obj });
-                            }
-
-                            return list;
-                        }
-                        else
-                        {
-                            //Just one item
-
-                            if (!resultAgg.Any())
-                                return null;
-                            
-                            var obj = newExp.Constructor.Invoke(resultAgg.First().Select(s => s.Value).ToArray());
-                            return obj;
-                        }                                                
-                    }
-
-                    throw new NotImplementedException("Need implement the anonymous projection on select");
-                }
-                else
-                {
-                    var prop = closedGeneric.GetProperty("Documents");
-
-                    if (prop.PropertyType.GetGenericArguments().Count() == 1 &&
-                        prop.PropertyType.GetGenericArguments() .First() == expType)
-                    {
-                        var value = prop.GetValue(request);
-                        return value;
-                    }
-                    else
-                    {
-                        throw new NotImplementedException("Need implement the anonymous projection on select");
-                    }
-                }               
-            }            
+                return DynamicTypeBuilder.ToList((AggregateDictionary)response.Aggregations, Convert.ToInt32(response.HitsMetadata.Total.Value));
+            }
         }
 
-        private object ConveterToType(Type type, object value)
+        private object ExecuteWithinMaxResultWindow()
         {
-            if (type == typeof(decimal))
-            {
-                return Convert.ToDecimal(value);
+            dynamic response = _search.Invoke(_elasticClient, new object[] { _nestQuery.SearchRequest });
+
+            if (!response.IsValid)
+            { 
+                new ElasticResponseException(response, _elementType);
             }
-            else if (type == typeof(decimal?))
-            {
-                if (value == null)
-                    return null;
-                return Convert.ToDecimal(value);
-            }
-            else if (type == typeof(double))
-            {
-                return Convert.ToDouble(value);
-            }
-            else if (type == typeof(double?))
-            {
-                if (value == null)
-                    return null;
-                return Convert.ToDouble(value);
-            }
-            else if (type == typeof(int))
-            {
-                return Convert.ToInt32(value);
-            }
-            else if (type == typeof(int?))
-            {
-                if (value == null)
-                    return null;
-                return Convert.ToInt32(value);
-            }
-            else if (type == typeof(long))
-            {
-                return Convert.ToInt64(value);
-            }
-            else if (type == typeof(long?))
-            {
-                if (value == null)
-                    return null;
-                return Convert.ToInt64(value);
-            }
-            return Convert.ChangeType(value, type);
+            return ExecuteFromSearchResponse(response);
         }
 
-
-        /// <summary>
-        /// Monta uma List<Dictionary<string, object>> onde tem nome da aggregação e o valor 
-        /// </summary>
-        /// <param name="aggregates">Aggregates do retorno do elastic</param>
-        /// <param name="props">passe nulo na primeira chamada</param>
-        /// <returns></returns>
-        public List<Dictionary<string, object>> ConvertAggregateResult(IReadOnlyDictionary<string, IAggregate> aggregates, Dictionary<string, object> props = null)
+        private object ExecuteFromSearchResponse(dynamic response)
         {
-            
-            var list = new List<Dictionary<string, object>>();
-            if (props == null)
-                props = new Dictionary<string, object>();
+            var prop = _searchResponse.GetProperty("Documents");
 
-            var add = false;
-            foreach (var item in aggregates)
+            if (prop.PropertyType.GetGenericArguments().Count() == 1 &&
+                prop.PropertyType.GetGenericArguments().First() == _expType)
             {
-                //Se o item for um bucket
-                if (item.Value is BucketAggregate && !item.Key.EndsWith("Count"))
-                {
-                    var bucket = item.Value as BucketAggregate;
-                    //Para receber as Aggregadas do item
-                    IReadOnlyDictionary<string, IAggregate> _subAggregates = null;
-
-                    foreach (var itemBucket in bucket.Items)
-                    {
-                        if (props.Any(w => w.Key == item.Key))
-                            props.Remove(item.Key);
-
-                        //Caso seja usado um novo tipo adicionar outra condição
-
-                        //Usado no TermsAggregation
-                        if (itemBucket is KeyedBucket<object>)
-                        {
-                            var _temp = itemBucket as KeyedBucket<object>;
-                            props.Add(item.Key, _temp.Key);
-                            //_subAggregates = _temp.Aggregations;
-
-                            var t = (from a in _temp.Keys
-                                     join b in _temp.ToList() on a equals b.Key
-                                     select new { Key = a, Value = b.Value });
-                            var _dc = new Dictionary<string, IAggregate>();
-                            foreach (var _item in t)
-                            {
-                                _dc.Add(_item.Key, _item.Value);
-                            }
-
-                            _subAggregates = new System.Collections.ObjectModel.ReadOnlyDictionary<string, IAggregate>(_dc);
-                        }
-                        else if (itemBucket is RangeBucket)
-                        {
-                            var _temp = itemBucket as RangeBucket;
-                            props.Add(item.Key, _temp.Key);
-                            //_subAggregates = _temp.Aggregations;
-                            var t = (from a in _temp.Keys
-                                     join b in _temp.ToList() on a equals b.Key
-                                     select new { Key = a, Value = b.Value });
-                            var _dc = new Dictionary<string, IAggregate>();
-                            foreach (var _item in t)
-                            {
-                                _dc.Add(_item.Key, _item.Value);
-                            }
-
-                            _subAggregates = new System.Collections.ObjectModel.ReadOnlyDictionary<string, IAggregate>(_dc);
-                        }
-                        //Usado no DateHistogramAggregation
-                        else if (itemBucket is DateHistogramBucket)
-                        {
-                            var _temp = itemBucket as DateHistogramBucket;
-                            props.Add(item.Key, _temp.Date);
-                            //_subAggregates = _temp.Aggregations;
-                            var t = (from a in _temp.Keys
-                                     join b in _temp.ToList() on a equals b.Key
-                                     select new { Key = a, Value = b.Value });
-                            var _dc = new Dictionary<string, IAggregate>();
-                            foreach (var _item in t)
-                            {
-                                _dc.Add(_item.Key, _item.Value);
-                            }
-
-                            _subAggregates = new System.Collections.ObjectModel.ReadOnlyDictionary<string, IAggregate>(_dc);
-                        }
-
-                        list.AddRange(ConvertAggregateResult(_subAggregates, props));
-                    }
-                }
-                //Quando ele for um Value considera sendo o ultimo nivel
-                else if (item.Value is ValueAggregate)
-                {
-                    add = true;
-                    var _temp = item.Value as ValueAggregate;
-
-                    if (props.Any(w => w.Key == item.Key))
-                        props.Remove(item.Key);
-
-                    props.Add(item.Key, _temp.Value);
-                }
-                else if (item.Value is BucketAggregate && item.Key.EndsWith("Count"))
-                {
-                    add = true;
-                    var _temp = item.Value as BucketAggregate;
-
-                    if (props.Any(w => w.Key == item.Key))
-                        props.Remove(item.Key);
-
-                    props.Add(item.Key, _temp.Items.Select(s => (s as KeyedBucket<object>).Key).Distinct().Count());
-                }
+                var value = prop.GetValue(response);
+                return value;
             }
+            return new { };
+        }
 
-            //Adicionar o item na lista
-            if (add)
+        private object ExecuteBeyondMaxResultWindow()
+        {
+            var originalRequestSize = _nestQuery.SearchRequest.Size;
+            var iterator = _nestQuery.SearchRequest.From;
+            _nestQuery.SearchRequest.From = 0;
+            while (iterator > _maxResultWindow - originalRequestSize)
             {
-                var _temp = new Dictionary<string, object>();
-
-                foreach (var item in props)
-                    _temp.Add(item.Key, item.Value);
-
-                list.Add(_temp);
+                Execute(_maxResultWindow - originalRequestSize, true);
+                iterator -= _maxResultWindow - originalRequestSize;
             }
+            if(iterator > 0)
+            {
+                Execute(iterator, true);
+            }
+            return ExecuteFromSearchResponse(Execute(originalRequestSize, false));
+        }
 
-            return list;
+        private object Execute(int? size, bool isLightWeight)
+        {
+            _nestQuery.SearchRequest.Size = size ?? 1;
+            _nestQuery.SearchRequest.Fields = isLightWeight ? "uniqueId" : null;
+            _nestQuery.SearchRequest.Source = !(isLightWeight);
+
+            dynamic response = _search.Invoke(_elasticClient, new object[] { _nestQuery.SearchRequest });
+            if (!response.IsValid)
+            {
+                new ElasticResponseException(response, _elementType);
+            }
+            _nestQuery.SearchRequest.SearchAfter = response.Hits[response.Hits.Length - 1].Sorts;
+            return response;
         }
     }
 }

@@ -1,13 +1,3 @@
-// -----------------------------------------------------------------------
-// <copyright file="QueryTranslatorSortTests.cs" company="Enterprise Products Partners L.P. (Enterprise)">
-// © Copyright 2012 - 2019, Enterprise Products Partners L.P. (Enterprise), All Rights Reserved.
-// Permission to use, copy, modify, or distribute this software source code, binaries or
-// related documentation, is strictly prohibited, without written consent from Enterprise.
-// For inquiries about the software, contact Enterprise: Enterprise Products Company Law
-// Department, 1100 Louisiana, 10th Floor, Houston, Texas 77002, phone 713-381-6500.
-// </copyright>
-// -----------------------------------------------------------------------
-
 using System.Collections.Generic;
 using System.Linq;
 using ElasticsearchQuery.Tests.Models;
@@ -34,7 +24,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.OrderBy(x => x.Id);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualReq = actual.SearchRequest;
 
             SearchRequest expectedReq = new SearchRequest();
@@ -58,7 +48,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.OrderByDescending(x => x.Id);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualReq = actual.SearchRequest;
 
             SearchRequest expectedReq = new SearchRequest();
@@ -83,7 +73,7 @@ namespace ElasticsearchQuery.Tests
             query = query.OrderByDescending(x => x.Id);
             query = query.OrderBy(x => x.Name);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualReq = actual.SearchRequest;
 
             SearchRequest expectedReq = new SearchRequest();
@@ -94,7 +84,7 @@ namespace ElasticsearchQuery.Tests
             };
             ISort sort2 = new FieldSort()
             {
-                Field = "name",
+                Field = "name.keyword",
                 Order = (SortOrder?)0
             };
             expectedReq.Sort = new List<ISort>
@@ -114,7 +104,7 @@ namespace ElasticsearchQuery.Tests
             query = query.OrderByDescending(x => x.Id);
             query = query.OrderBy(x => x.Name);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualReq = actual.SearchRequest;
 
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
@@ -131,7 +121,7 @@ namespace ElasticsearchQuery.Tests
             };
             ISort sort2 = new FieldSort()
             {
-                Field = "name",
+                Field = "name.keyword",
                 Order = (SortOrder?)0
             };
             expectedReq.Sort = new List<ISort>

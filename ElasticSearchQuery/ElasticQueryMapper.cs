@@ -25,22 +25,22 @@ namespace ElasticsearchQuery
         /// <returns>The Map for type<see cref="ElasticIndexMap"/></returns>
         public static ElasticIndexMap GetMap(Type type)
         {
-            ElasticIndexMap map = null;
-            if (TypeMaps.TryGetValue(type,out map))
-               return map;
+            if (TypeMaps.TryGetValue(type, out ElasticIndexMap map))
+                return map;
             else
-            {                
-                var typeNames = new List<string>();
-
-                typeNames.Add(type.Name.ToLower());
+            {
+                var typeNames = new List<string>
+                {
+                    type.Name.ToLower()
+                };
 
                 var attrs = type.GetCustomAttributes()
                     .Where(w => w is ElasticsearchTypeAttribute)
                     .Select(s => s as ElasticsearchTypeAttribute);
 
-                if (attrs.Any())                
+                if (attrs.Any())
                     typeNames.AddRange(attrs.Select(s => s.Name.ToLower()));
-                
+
 
                 return new ElasticIndexMap(type.Name.ToLower(), typeNames.Distinct().ToArray());
             };      

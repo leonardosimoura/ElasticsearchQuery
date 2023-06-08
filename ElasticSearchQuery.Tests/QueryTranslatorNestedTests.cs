@@ -1,14 +1,4 @@
-﻿// -----------------------------------------------------------------------
-// <copyright file="QueryTranslatorNestedTests.cs" company="Enterprise Products Partners L.P. (Enterprise)">
-// © Copyright 2012 - 2019, Enterprise Products Partners L.P. (Enterprise), All Rights Reserved.
-// Permission to use, copy, modify, or distribute this software source code, binaries or
-// related documentation, is strictly prohibited, without written consent from Enterprise.
-// For inquiries about the software, contact Enterprise: Enterprise Products Company Law
-// Department, 1100 Louisiana, 10th Floor, Houston, Texas 77002, phone 713-381-6500.
-// </copyright>
-// -----------------------------------------------------------------------
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using ElasticsearchQuery.Tests.Models;
@@ -35,7 +25,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31));
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -51,7 +41,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31) && x.Name == "product");
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -68,7 +58,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31) || x.Id == 32);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -85,7 +75,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31 && y.Name == "test"));
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -104,7 +94,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31 || y.Name == "test"));
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -123,7 +113,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31) && x.MockModels.Any(y => y.Name == "test"));
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -144,7 +134,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31) || x.MockModels.Any(y => y.Name == "test"));
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -165,7 +155,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<NestedMockModel> query = _model.AsQueryable();
             query = query.Where(x => (x.MockModels.Any(y => y.Name == "test") && x.Id == 3543) || x.Name == "test0");
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.name").Value("test"));
@@ -186,7 +176,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Where(x => x.MockModels.Any(y => y.Id == 31) || x.MockModels.Any(y => y.Name == "test"));
             query = query.Where(x => (x.MockModels.Any(y => y.Name == "test1") && x.Id == 3543) || x.Name == "test0");
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(31));
@@ -215,7 +205,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Where(x => (x.MockModels.Any(y => y.Id == 31 || y.Name == "test1") && x.Id >= 3543) || (x.Name == "test0"
                 && (x.Date < dateTime || x.Id == 30)));
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(32));
@@ -249,7 +239,7 @@ namespace ElasticsearchQuery.Tests
                 && (x.Date < dateTime || x.Id == 30)));
             query = query.OrderBy(x => x.Id).ThenByDescending(x => x.Date);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(32));
@@ -305,7 +295,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Skip(from);
             query = query.Take(top);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "nestedmockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var intermedidateQuery1 = new QueryContainerDescriptor<object>().Term(x => x.Field("mockModels.id").Value(32));

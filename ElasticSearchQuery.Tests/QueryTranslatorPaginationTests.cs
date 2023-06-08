@@ -1,13 +1,3 @@
-// -----------------------------------------------------------------------
-// <copyright file="QueryTranslatorPaginationTests.cs" company="Enterprise Products Partners L.P. (Enterprise)">
-// © Copyright 2012 - 2019, Enterprise Products Partners L.P. (Enterprise), All Rights Reserved.
-// Permission to use, copy, modify, or distribute this software source code, binaries or
-// related documentation, is strictly prohibited, without written consent from Enterprise.
-// For inquiries about the software, contact Enterprise: Enterprise Products Company Law
-// Department, 1100 Louisiana, 10th Floor, Houston, Texas 77002, phone 713-381-6500.
-// </copyright>
-// -----------------------------------------------------------------------
-
 using System.Collections.Generic;
 using System.Linq;
 using ElasticsearchQuery.Tests.Models;
@@ -35,7 +25,7 @@ namespace ElasticsearchQuery.Tests
             var size = 100;
             query = query.Take(size);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualSize = actual.SearchRequest.Size;
 
             Assert.IsTrue(actualSize == size);
@@ -50,7 +40,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Take(size);
             query = query.Where(x => x.Id == 31);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualContainer = (IQueryContainer)actual.SearchRequest.Query;
             var actualSize = actual.SearchRequest.Size;
 
@@ -68,7 +58,7 @@ namespace ElasticsearchQuery.Tests
             var size = 100;
             query = query.Skip(size);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualSize = actual.SearchRequest.From;
 
             Assert.IsTrue(actualSize == size);
@@ -83,7 +73,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Skip(size);
             query = query.Where(x => x.Id == 31);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualContainer = (IQueryContainer)actual.SearchRequest.Query;
             var actualSize = actual.SearchRequest.From;
 
@@ -103,7 +93,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Skip(from);
             query = query.Take(top);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
 
             Assert.IsTrue(actual.SearchRequest.Size == top);
             Assert.IsTrue(actual.SearchRequest.From == from);
@@ -120,7 +110,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Take(top);
             query = query.Where(x => x.Id == 31);
 
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualContainer = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedContainer = new QueryContainerDescriptor<object>().Term(x => x.Field("id").Value(31));

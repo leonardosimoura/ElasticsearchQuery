@@ -1,13 +1,3 @@
-// -----------------------------------------------------------------------
-// <copyright file="QueryTranslatorTextTests.cs" company="Enterprise Products Partners L.P. (Enterprise)">
-// © Copyright 2012 - 2019, Enterprise Products Partners L.P. (Enterprise), All Rights Reserved.
-// Permission to use, copy, modify, or distribute this software source code, binaries or
-// related documentation, is strictly prohibited, without written consent from Enterprise.
-// For inquiries about the software, contact Enterprise: Enterprise Products Company Law
-// Department, 1100 Louisiana, 10th Floor, Houston, Texas 77002, phone 713-381-6500.
-// </copyright>
-// -----------------------------------------------------------------------
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,7 +26,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.Where(x => x.Name.Contains("jg"));
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = ((IQueryContainer)actual.SearchRequest.Query).Match;
 
             var expectedQuery = new QueryContainerDescriptor<object>().Match(x => x.Field("name").Query("jg"));
@@ -52,7 +42,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.Where(x => x.Name.StartsWith("jg"));
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = new QueryContainerDescriptor<object>().Prefix(x => x.Field("name").Value("jg"));
@@ -67,7 +57,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.Where(x => x.Name.Contains("jg") && x.Id == 31);
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = new QueryContainerDescriptor<object>().Match(x => x.Field("name").Query("jg"))
@@ -83,7 +73,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.Where(x => x.Name.Contains("jg") || x.Id == 31);
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = new QueryContainerDescriptor<object>().Match(x => x.Field("name").Query("jg"))
@@ -99,7 +89,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.Where(x => x.Name.StartsWith("jg") && x.Id == 31);
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = new QueryContainerDescriptor<object>().Prefix(x => x.Field("name").Value("jg"))
@@ -115,7 +105,7 @@ namespace ElasticsearchQuery.Tests
             IQueryable<MockModel> query = _model.AsQueryable();
             query = query.Where(x => x.Name.StartsWith("jg") || x.Id == 31);
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = new QueryContainerDescriptor<object>().Prefix(x => x.Field("name").Value("jg"))
@@ -132,7 +122,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Where(x => (x.Name.StartsWith("jg") && x.Id == 30) || (x.Name == "test0" && (x.Id == 31 || x.Name == "test")));
 
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = (new QueryContainerDescriptor<object>().Prefix(x => x.Field("name").Value("jg"))
@@ -152,7 +142,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Where(x => (x.Name.Contains("jg") && x.Id == 30) || (x.Name == "test0" && (x.Id == 31 || x.Name == "test")));
 
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = (new QueryContainerDescriptor<object>().Match(x => x.Field("name").Query("jg"))
@@ -173,7 +163,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Where(x => (x.Name.StartsWith("jg") && x.Id == 30) || (x.Name == "test0" && ((x.Id <= 31) || x.Name == "test")));
 
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = (new QueryContainerDescriptor<object>().Prefix(x => x.Field("name").Value("jg"))
@@ -194,7 +184,7 @@ namespace ElasticsearchQuery.Tests
             query = query.Where(x => (x.Name.Contains("jg") && x.Id == 30) || (x.Name == "test0" && ((x.Id <= 31) || x.Name == "test")));
 
             Expression exp = query.Expression;
-            var actual = _queryTranslator.Translate(query.Expression, obj.GetType());
+            var actual = _queryTranslator.Translate(query.Expression, "mockmodel");
             var actualQuery = (IQueryContainer)actual.SearchRequest.Query;
 
             var expectedQuery = (new QueryContainerDescriptor<object>().Match(x => x.Field("name").Query("jg"))

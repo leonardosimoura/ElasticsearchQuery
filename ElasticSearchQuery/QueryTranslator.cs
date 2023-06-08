@@ -22,7 +22,6 @@ namespace ElasticsearchQuery
         ExpressionType binaryExpType;
         object value = null;
         private bool AndCondition = true;
-        Type elementType;
         bool denyCondition = false;
         bool isNestedCondition = false;
 
@@ -188,13 +187,13 @@ namespace ElasticsearchQuery
                     {
                         var tempCollection = value as System.Collections.IEnumerable;
 
-                        Func<TermsQueryDescriptor<object>, ITermsQuery> termsSelector = t => t.Field(field).Terms(tempCollection);
+                        ITermsQuery termsSelector(TermsQueryDescriptor<object> t) => t.Field(field).Terms(tempCollection);
 
                         queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.Terms(termsSelector))) : Query<object>.Terms(termsSelector);
                     }
                     else
                     {
-                        Func<TermQueryDescriptor<object>, ITermQuery> termSelector = t => t.Field(field).Value(value);
+                        ITermQuery termSelector(TermQueryDescriptor<object> t) => t.Field(field).Value(value);
 
                         queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.Term(termSelector))) : Query<object>.Term(termSelector);
                     }
@@ -211,12 +210,12 @@ namespace ElasticsearchQuery
                     // TODO cast only when is necessary to double / decimal
                     if (value.GetType().Name == nameof(DateTime))
                     {
-                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> lessThan = r => r.Field(field).LessThan((DateTime?)Convert.ToDateTime(value));
+                        IDateRangeQuery lessThan(DateRangeQueryDescriptor<object> r) => r.Field(field).LessThan((DateTime?)Convert.ToDateTime(value));
                         queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(lessThan))) : Query<object>.DateRange(lessThan);
                     }
                     else
                     {
-                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> lessThan = r => r.Field(field).LessThan((double?)Convert.ToDecimal(value));
+                        INumericRangeQuery lessThan(NumericRangeQueryDescriptor<object> r) => r.Field(field).LessThan((double?)Convert.ToDecimal(value));
                         queryContainer = denyCondition ? Query<object>.Bool(b => b.MustNot(m => m.Range(lessThan))) : Query<object>.Range(lessThan);
                     }
 
@@ -225,14 +224,14 @@ namespace ElasticsearchQuery
 
                     if (value.GetType().Name == nameof(DateTime))
                     {
-                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> lessThanOrEqual = r => r.Field(field).LessThanOrEquals((DateTime?)Convert.ToDateTime(value));
+                        IDateRangeQuery lessThanOrEqual(DateRangeQueryDescriptor<object> r) => r.Field(field).LessThanOrEquals((DateTime?)Convert.ToDateTime(value));
                         queryContainer = denyCondition
                             ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(lessThanOrEqual)))
                             : Query<object>.DateRange(lessThanOrEqual);
                     }
                     else
                     {
-                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> greaterThanSelector = r => r.Field(field).LessThanOrEquals((double?)Convert.ToDecimal(value));
+                        INumericRangeQuery greaterThanSelector(NumericRangeQueryDescriptor<object> r) => r.Field(field).LessThanOrEquals((double?)Convert.ToDecimal(value));
                         queryContainer = denyCondition
                             ? Query<object>.Bool(b => b.MustNot(m => m.Range(greaterThanSelector)))
                             : Query<object>.Range(greaterThanSelector);
@@ -242,14 +241,14 @@ namespace ElasticsearchQuery
                 case ExpressionType.GreaterThan:
                     if (value.GetType().Name == nameof(DateTime))
                     {
-                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> greaterThanSelector = r => r.Field(field).GreaterThan((DateTime?)Convert.ToDateTime(value));
+                        IDateRangeQuery greaterThanSelector(DateRangeQueryDescriptor<object> r) => r.Field(field).GreaterThan((DateTime?)Convert.ToDateTime(value));
                         queryContainer = denyCondition
                             ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(greaterThanSelector)))
                             : Query<object>.DateRange(greaterThanSelector);
                     }
                     else
                     {
-                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> greaterThanSelector1 = r => r.Field(field).GreaterThan((double?)Convert.ToDecimal(value));
+                        INumericRangeQuery greaterThanSelector1(NumericRangeQueryDescriptor<object> r) => r.Field(field).GreaterThan((double?)Convert.ToDecimal(value));
                         queryContainer = denyCondition
                             ? Query<object>.Bool(b => b.MustNot(m => m.Range(greaterThanSelector1)))
                             : Query<object>.Range(greaterThanSelector1);
@@ -259,14 +258,14 @@ namespace ElasticsearchQuery
                 case ExpressionType.GreaterThanOrEqual:
                     if (value.GetType().Name == nameof(DateTime))
                     {
-                        Func<DateRangeQueryDescriptor<object>, IDateRangeQuery> greaterThanOrEqualSelector = r => r.Field(field).GreaterThanOrEquals((DateTime?)Convert.ToDateTime(value));
+                        IDateRangeQuery greaterThanOrEqualSelector(DateRangeQueryDescriptor<object> r) => r.Field(field).GreaterThanOrEquals((DateTime?)Convert.ToDateTime(value));
                         queryContainer = denyCondition
                             ? Query<object>.Bool(b => b.MustNot(m => m.DateRange(greaterThanOrEqualSelector)))
                             : Query<object>.DateRange(greaterThanOrEqualSelector);
                     }
                     else
                     {
-                        Func<NumericRangeQueryDescriptor<object>, INumericRangeQuery> greaterThanOrEqualSelector1 = r => r.Field(field).GreaterThanOrEquals((double?)Convert.ToDecimal(value));
+                        INumericRangeQuery greaterThanOrEqualSelector1(NumericRangeQueryDescriptor<object> r) => r.Field(field).GreaterThanOrEquals((double?)Convert.ToDecimal(value));
                         queryContainer = denyCondition
                             ? Query<object>.Bool(b => b.MustNot(m => m.Range(greaterThanOrEqualSelector1)))
                             : Query<object>.Range(greaterThanOrEqualSelector1);
@@ -309,7 +308,7 @@ namespace ElasticsearchQuery
             fieldsOrderBy = new List<OrderBy>();
             returnNumberOfRows = false;
             operacao = string.Empty;
-            binaryExpType = default(ExpressionType);
+            binaryExpType = default;
             value = null;
             AndCondition = true;
             denyCondition = false;
@@ -317,11 +316,9 @@ namespace ElasticsearchQuery
             _aggregationBase = null;
         }
 
-        internal QueryTranslateResult Translate(Expression expression, Type elementType)
+        internal QueryTranslateResult Translate(Expression expression, string indexName)
         {
-            this.elementType = elementType;
-            var queryMap = ElasticQueryMapper.GetMap(this.elementType);
-            var _index = Indices.Index(queryMap.Index);
+            var _index = Indices.Index(indexName);
 
             _searchRequest = new SearchRequest(_index);
 
@@ -360,8 +357,11 @@ namespace ElasticsearchQuery
                     }
                     LambdaExpression lambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
                     var expression = lambda.Body;
-                    _searchRequest.Query &= CreateNestQuery(expression);
-
+                    if(expression is BinaryExpression
+                        || expression is MethodCallExpression)
+                    {
+                        _searchRequest.Query &= CreateNestQuery(expression);
+                    }
                     return m;
 
                 case "Count":
@@ -385,10 +385,11 @@ namespace ElasticsearchQuery
                             aggregations.Add(new Aggregation(memberExp.Member.Name.ToCamelCase(), m.Method.Name));
                         }
                         SetAggregation();
-                    }
+                        
                     if (m.Arguments.First() is ConstantExpression == false)
                     {
                         Visit(m.Arguments.First());
+                    }
                     }
 
                     return m;
@@ -418,13 +419,7 @@ namespace ElasticsearchQuery
                 case "Contains":
                     operacao = m.Method.Name;
 
-                    var memberContainsExp = m.Object as MemberExpression;
-
-                    if (memberContainsExp == null)
-                    {
-                        memberContainsExp = m.Arguments[0] as MemberExpression;
-                    }
-
+                    var memberContainsExp = m.Object as MemberExpression ?? m.Arguments[0] as MemberExpression;
                     if (memberContainsExp != null)
                     {
                         if (memberContainsExp.Expression is ConstantExpression)
@@ -566,7 +561,10 @@ namespace ElasticsearchQuery
                     }
 
                     SetAggregation();
-
+                    if (m.Arguments[0] is MethodCallExpression)
+                    {
+                        Visit(m.Arguments[0]);
+                    }
                     return m;
                 case "Select":
                     LambdaExpression selectLambda = (LambdaExpression)ExpressionHelper.StripQuotes(m.Arguments[1]);
@@ -587,6 +585,24 @@ namespace ElasticsearchQuery
                                         var propArgLambda = (LambdaExpression)ExpressionHelper.StripQuotes(arMExp.Arguments[1]);
                                         var propArgMExp = propArgLambda.Body as MemberExpression;
                                         aggregations.Add(new Aggregation(propArgMExp.Member.Name.ToCamelCase(), arMExp.Method.Name));
+                                    }
+                                }
+                            }
+                            else if(selectLambda.Body is MemberInitExpression)
+                            {
+                                var bindings = (selectLambda.Body as MemberInitExpression).Bindings;
+                                foreach (var binding in bindings)
+                                {
+                                    var argument = (binding as MemberAssignment).Expression;
+                                    if (argument is MethodCallExpression)
+                                    {
+                                        var arMExp = argument as MethodCallExpression;
+                                        if (arMExp.Arguments.Count > 1)
+                                        {
+                                            var propArgLambda = (LambdaExpression)ExpressionHelper.StripQuotes                                  (arMExp.Arguments[1]);
+                                            var propArgMExp = propArgLambda.Body as MemberExpression;
+                                            aggregations.Add(new Aggregation(propArgMExp.Member.Name.ToCamelCase(),                             arMExp.Method.Name));
+                                        }
                                     }
                                 }
                             }
@@ -636,8 +652,14 @@ namespace ElasticsearchQuery
                     if (orderLambdaExp.Body is MemberExpression)
                     {
                         var mExp = orderLambdaExp.Body as MemberExpression;
-
-                        fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(), (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
+                        if (((PropertyInfo)mExp.Member).PropertyType == typeof(string))
+                        {
+                            fieldsOrderBy.Add(new OrderBy($"{mExp.Member.Name.ToCamelCase()}.keyword", (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
+                        }
+                        else
+                        {
+                            fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(), (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
+                        }
                     }
 
                     if (m.Arguments.First() is ConstantExpression == false)
