@@ -1,5 +1,6 @@
 ﻿using ElasticsearchQuery.Extensions;
 using ElasticsearchQuery.Helpers;
+using ElasticsearchQuery.NameProviders;
 using Nest;
 using System;
 using System.Collections.Generic;
@@ -10,45 +11,25 @@ using System.Text;
 
 namespace ElasticsearchQuery
 {
-    internal class ElasticQueryProvider : QueryProvider
+    public class ElasticQueryProvider : QueryProvider
     {
-        private readonly IElasticClient _elasticClient;
-        public ElasticQueryProvider(IElasticClient elasticClient)
+        public ElasticQueryProvider(IElasticClient elasticClient, string indexName)
         {
-            _elasticClient = elasticClient;
+            ElasticClient = elasticClient;
+            IndexName = indexName;
         }
+
+        protected IElasticClient ElasticClient { get; }
+
+        protected string IndexName { get; }
+
         public override object Execute(Expression expression)
         {
-            //Element type of IQueryable
             //Need this for the elastic search request
+            var elasticQueryResult = new QueryTranslator().Translate(expression, IndexName);
+
             Type elementType = TypeSystem.GetElementType(expression.Type);
             Type expType = TypeSystem.GetElementType(expression.Type);
-
-            if (Attribute.IsDefined(expType, typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false)
-                && expType.IsGenericType && expType.Name.Contains("AnonymousType")
-                && (expType.Name.StartsWith("<>") || expType.Name.StartsWith("VB$"))
-                && (expType.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic)
-            {
-                var mExp = expression as MethodCallExpression;
-                var t1 = TypeSystem.GetElementType(mExp.Arguments[0].Type) ;
-
-                while (t1.IsGenericType)
-                {
-                    mExp = mExp.Arguments[0] as MethodCallExpression;
-                    t1 = TypeSystem.GetElementType(mExp.Arguments[0].Type);
-                }
-
-                elementType = t1;
-            }
-
-            //Whem use IQueryable.Sum() for example need make this to get the elementType
-            if (!elementType.IsClass)
-            {
-                var exp = expression as MethodCallExpression;
-                elementType = exp.Arguments[0].Type.GenericTypeArguments[0];
-            }
-
-            var elasticQueryResult = new QueryTranslator().Translate(expression, elementType);
 
             var method = typeof(ElasticClient)
                           .GetMethods()
@@ -65,7 +46,7 @@ namespace ElasticsearchQuery
                         .Select(x => x.Method).First();
 
             MethodInfo generic = method.MakeGenericMethod(elementType);
-            dynamic request = generic.Invoke(_elasticClient, new object[] { elasticQueryResult.SearchRequest });
+            dynamic request = generic.Invoke(ElasticClient, new object[] { elasticQueryResult.SearchRequest });
 
 
             if (elasticQueryResult.ReturnNumberOfRows)
@@ -73,7 +54,7 @@ namespace ElasticsearchQuery
                 return Convert.ChangeType(request.HitsMetadata.Total.Value, expType);
             }
 
-            var closedGeneric = typeof(SearchResponse<>).MakeGenericType(elementType);           
+            var closedGeneric = typeof(SearchResponse<>).MakeGenericType(elementType);
 
             //Simple Agregation
             if (!expType.IsClass)
@@ -90,12 +71,12 @@ namespace ElasticsearchQuery
             }
             else
             {
-                
+
                 if (elasticQueryResult.GroupBy.Any() || elasticQueryResult.Aggregation.Any())
                 {
                     var mExp = expression as MethodCallExpression;
                     var lastLambExp = ExpressionHelper.StripQuotes(mExp.Arguments.Last()) as LambdaExpression;
-                  
+
                     var prop = closedGeneric.GetProperty("Aggregations");
                     var aggs = prop.GetValue(request) as AggregateDictionary;
 
@@ -106,7 +87,7 @@ namespace ElasticsearchQuery
                         var newExp = lastLambExp.Body as NewExpression;
 
                         //A set of items
-                        if (expression.Type.GetInterfaces().Any(t => t == typeof(IQueryable) || t == typeof(IQueryable<>)  ))
+                        if (expression.Type.GetInterfaces().Any(t => t == typeof(IQueryable) || t == typeof(IQueryable<>)))
                         {
                             var typeList = typeof(List<>).MakeGenericType(expType);
                             var list = Activator.CreateInstance(typeList);
@@ -118,9 +99,9 @@ namespace ElasticsearchQuery
 
                             var membersExps = newExp.Arguments.Where(s => (s is MemberExpression))
                                                             .Select(s => s as MemberExpression)
-                                                            .Select(s => s.Member.Name.ToCamelCase());                           
+                                                            .Select(s => s.Member.Name.ToCamelCase());
 
-                            var methodCallsExps = newExp.Arguments.Where(s => (s is MethodCallExpression)).Select(s => s as MethodCallExpression) .Select(s => s.Method.Name + "_" + ((s.Arguments.Last() as LambdaExpression ).Body as MemberExpression).Member.Name.ToCamelCase());
+                            var methodCallsExps = newExp.Arguments.Where(s => (s is MethodCallExpression)).Select(s => s as MethodCallExpression).Select(s => s.Method.Name + "_" + ((s.Arguments.Last() as LambdaExpression).Body as MemberExpression).Member.Name.ToCamelCase());
 
 
                             Func<string, bool> filterPredicate = (string str) =>
@@ -139,10 +120,10 @@ namespace ElasticsearchQuery
                             var parametersInfo = newExp.Constructor.GetParameters();
 
                             foreach (var item in resultAgg)
-                            {      
+                            {
                                 var parameters = item.Where(w => membersExps.Contains(w.Key) || methodCallsExps.Contains(w.Key)).Select(s => s.Value).ToArray();
 
-                                
+
                                 if (membersExps.Count() == 1 && membersExps.First() == "key")
                                 {
                                     parameters = new object[] { item.First().Value }.Concat(parameters).ToArray();
@@ -166,10 +147,10 @@ namespace ElasticsearchQuery
 
                             if (!resultAgg.Any())
                                 return null;
-                            
+
                             var obj = newExp.Constructor.Invoke(resultAgg.First().Select(s => s.Value).ToArray());
                             return obj;
-                        }                                                
+                        }
                     }
 
                     throw new NotImplementedException("Need implement the anonymous projection on select");
@@ -179,7 +160,7 @@ namespace ElasticsearchQuery
                     var prop = closedGeneric.GetProperty("Documents");
 
                     if (prop.PropertyType.GetGenericArguments().Count() == 1 &&
-                        prop.PropertyType.GetGenericArguments() .First() == expType)
+                        prop.PropertyType.GetGenericArguments().First() == expType)
                     {
                         var value = prop.GetValue(request);
                         return value;
@@ -188,8 +169,8 @@ namespace ElasticsearchQuery
                     {
                         throw new NotImplementedException("Need implement the anonymous projection on select");
                     }
-                }               
-            }            
+                }
+            }
         }
 
         private object ConveterToType(Type type, object value)
@@ -238,15 +219,24 @@ namespace ElasticsearchQuery
         }
 
 
+
+#pragma warning disable CS1570 // XML comment has badly formed XML -- 'Dictionary'
+#pragma warning disable CS1570 // XML comment has badly formed XML -- ','
+#pragma warning disable CS1570 // XML comment has badly formed XML -- 'summary'
         /// <summary>
         /// Monta uma List<Dictionary<string, object>> onde tem nome da aggregação e o valor 
         /// </summary>
         /// <param name="aggregates">Aggregates do retorno do elastic</param>
         /// <param name="props">passe nulo na primeira chamada</param>
         /// <returns></returns>
+#pragma warning disable CS1570 // XML comment has badly formed XML -- 'summary'
         public List<Dictionary<string, object>> ConvertAggregateResult(IReadOnlyDictionary<string, IAggregate> aggregates, Dictionary<string, object> props = null)
+#pragma warning restore CS1570 // XML comment has badly formed XML -- 'summary'
+#pragma warning restore CS1570 // XML comment has badly formed XML -- 'summary'
+#pragma warning restore CS1570 // XML comment has badly formed XML -- ','
+#pragma warning restore CS1570 // XML comment has badly formed XML -- 'Dictionary'
         {
-            
+
             var list = new List<Dictionary<string, object>>();
             if (props == null)
                 props = new Dictionary<string, object>();

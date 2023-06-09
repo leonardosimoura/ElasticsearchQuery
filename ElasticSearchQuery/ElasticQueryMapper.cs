@@ -39,7 +39,9 @@ namespace ElasticsearchQuery
                     .Select(s => s as ElasticsearchTypeAttribute);
 
                 if (attrs.Any())                
+#pragma warning disable CS0618 // 'ElasticsearchTypeAttribute.Name' is obsolete: 'Deprecated. Please use RelationName'
                     typeNames.AddRange(attrs.Select(s => s.Name.ToLower()));
+#pragma warning restore CS0618 // 'ElasticsearchTypeAttribute.Name' is obsolete: 'Deprecated. Please use RelationName'
                 
 
                 return new ElasticIndexMap(type.Name.ToLower(), typeNames.Distinct().ToArray());
@@ -61,7 +63,9 @@ namespace ElasticsearchQuery
         public ElasticIndexMap(string index, string[] indexTypes)
         {
             Index = index;
+#pragma warning disable CS0618 // 'ElasticIndexMap.IndexTypes' is obsolete: 'As elasticsearch will not support more types this Will bee remove in next releases.'
             IndexTypes = indexTypes;
+#pragma warning restore CS0618 // 'ElasticIndexMap.IndexTypes' is obsolete: 'As elasticsearch will not support more types this Will bee remove in next releases.'
         }
 
         public string Index { get;private set; }

@@ -7,7 +7,7 @@ using System.Text;
 
 namespace ElasticsearchQuery
 {
-    internal class ElasticQuery<T> : IQueryable<T>, IQueryable, IEnumerable<T>, IEnumerable, IOrderedQueryable<T>, IOrderedQueryable
+    public class ElasticQuery<T> : IQueryable<T>, IQueryable, IEnumerable<T>, IEnumerable, IOrderedQueryable<T>, IOrderedQueryable
     {
         IQueryProvider provider;
         Expression expression;

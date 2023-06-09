@@ -5,11 +5,11 @@ using System.Text;
 
 namespace ElasticsearchQuery.Helpers
 {
-    internal static class TypeSystem
+    public static class TypeSystem
     {
 
 
-        internal static Type GetElementType(Type seqType)
+        public static Type GetElementType(Type seqType)
         {
 
 
