@@ -599,9 +599,9 @@ namespace ElasticsearchQuery
                                         var arMExp = argument as MethodCallExpression;
                                         if (arMExp.Arguments.Count > 1)
                                         {
-                                            var propArgLambda = (LambdaExpression)ExpressionHelper.StripQuotes                                  (arMExp.Arguments[1]);
+                                            var propArgLambda = (LambdaExpression)ExpressionHelper.StripQuotes(arMExp.Arguments[1]);
                                             var propArgMExp = propArgLambda.Body as MemberExpression;
-                                            aggregations.Add(new Aggregation(propArgMExp.Member.Name.ToCamelCase(),                             arMExp.Method.Name));
+                                            aggregations.Add(new Aggregation(propArgMExp.Member.Name.ToCamelCase(),arMExp.Method.Name, binding.Member.Name));
                                         }
                                     }
                                 }
@@ -652,14 +652,7 @@ namespace ElasticsearchQuery
                     if (orderLambdaExp.Body is MemberExpression)
                     {
                         var mExp = orderLambdaExp.Body as MemberExpression;
-                        if (((PropertyInfo)mExp.Member).PropertyType == typeof(string))
-                        {
-                            fieldsOrderBy.Add(new OrderBy($"{mExp.Member.Name.ToCamelCase()}.keyword", (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
-                        }
-                        else
-                        {
-                            fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(), (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
-                        }
+                        fieldsOrderBy.Add(new OrderBy(mExp.Member.Name.ToCamelCase(), (m.Method.Name == "OrderBy" || m.Method.Name == "ThenBy") ? SortOrder.Ascending : SortOrder.Descending));
                     }
 
                     if (m.Arguments.First() is ConstantExpression == false)
@@ -883,15 +876,16 @@ namespace ElasticsearchQuery
 
     internal class Aggregation
     {
-        public Aggregation(string field, string method)
+        public Aggregation(string field, string method, string aggName = null)
         {
             Field = field;
             Method = method;
+            AggName = aggName ?? $"{Method}_{Field}";
         }
 
         public string Field { get; set; }
         public string Method { get; set; }
 
-        public string AggName => $"{Method}_{Field}";
+        public string AggName { get; set; }
     }
 }
